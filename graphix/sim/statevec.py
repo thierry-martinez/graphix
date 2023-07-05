@@ -11,7 +11,7 @@ import graphix.pauli
 class StatevectorBackend:
     """MBQC simulator with statevector method."""
 
-    def __init__(self, pattern, max_qubit_num=20):
+    def __init__(self, pattern, max_qubit_num=20, pr_calc=False):
         """
         Parameters
         -----------
@@ -25,6 +25,12 @@ class StatevectorBackend:
         """
         # check that pattern has output nodes configured
         assert len(pattern.output_nodes) > 0
+
+        # test whether the user defined pr_calc (whether to compute the probability).
+        # Defaults to False.
+        # self.pr_calc = kwargs.get('pr_calc', False)
+        self.pr_calc = pr_calc
+
         self.pattern = pattern
         self.results = deepcopy(pattern.results)
         self.state = None
@@ -82,13 +88,13 @@ class StatevectorBackend:
         cmd : list
             measurement command : ['M', node, plane angle, s_domain, t_domain]
         """
-        # choose the measurement result randomly
-        result = np.random.choice([0, 1])
-        self.results[cmd[1]] = result
+
+        # m_op = meas_op(angle, vop=vop, plane=cmd[2], choice=result)
 
         # extract signals for adaptive angle
         s_signal = np.sum([self.results[j] for j in cmd[4]])
         t_signal = np.sum([self.results[j] for j in cmd[5]])
+
         angle = cmd[3] * np.pi
         if len(cmd) == 7:
             vop = cmd[6]
@@ -99,11 +105,27 @@ class StatevectorBackend:
         )
         angle = angle * measure_update.coeff + measure_update.add_term
         vec = measure_update.new_plane.polar(angle)
-        op_mat = np.eye(2, dtype=np.complex128) / 2
-        for i in range(3):
-            op_mat += (-1) ** (result) * vec[i] * CLIFFORD[i + 1] / 2
-
         loc = self.node_index.index(cmd[1])
+        if self.pr_calc:
+            op_mat = np.eye(2, dtype=np.complex128) / 2
+            for i in range(3): # first assume result == 0
+                op_mat += vec[i] * CLIFFORD[i + 1] / 2
+            prob_0 = self.state.expectation_single(op_mat, loc)
+            if np.random.rand() > prob_0:
+                result = 1
+                op_mat = np.eye(2, dtype=np.complex128) / 2
+                for i in range(3): # recompute for result == 1
+                    op_mat += (-1) * vec[i] * CLIFFORD[i + 1] / 2
+            else:
+                result = 0
+        else:
+            # choose the measurement result randomly
+            result = np.random.choice([0, 1])
+            op_mat = np.eye(2, dtype=np.complex128) / 2
+            for i in range(3):
+                op_mat += (-1) ** (result) * vec[i] * CLIFFORD[i + 1] / 2
+        self.results[cmd[1]] = result
+
         self.state.evolve_single(op_mat, loc)
 
         self.state.remove_qubit(loc)
@@ -404,7 +426,7 @@ class Statevec:
         """
         st1 = deepcopy(self)
         st1.normalize()
-        st2 = st1.deepcopy(st1)
+        st2 = deepcopy(st1)
         st1.evolve_single(op, loc)
         return np.dot(st2.psi.flatten().conjugate(), st1.psi.flatten())
 
