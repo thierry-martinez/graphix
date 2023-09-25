@@ -11,6 +11,50 @@ from graphix.clifford import CLIFFORD_CONJ, CLIFFORD_TO_QASM3, CLIFFORD_MEASURE
 from copy import deepcopy
 
 
+class ListWatcher:
+    def __init__(self, l, on_change):
+        self.__l = l
+        self.__on_change = on_change
+
+    def __len__(self):
+        return len(self.__l)
+
+    def __iter__(self):
+        return iter(self.__l)
+
+    def __getitem__(self, index):
+        return self.__l[index]
+
+    def __setitem__(self, index, value):
+        self.__l[index] = value
+        self.__on_change()
+
+    def __delitem__(self, index):
+        del self.__l[index]
+        self.__on_change()
+
+    def append(self, value):
+        self.__l.append(value)
+        self.__on_change()
+
+    def extend(self, values):
+        self.__l.extend(values)
+        self.__on_change()
+
+    def insert(self, index, value):
+        self.__l.insert(index, value)
+        self.__on_change()
+
+    def pop(self, index=-1):
+        result = self.__l.pop(index)
+        self.__on_change()
+        return result
+
+    def remove(self, value):
+        self.__l.remove(value)
+        self.__on_change()
+
+
 class Pattern:
     """
     MBQC pattern class
@@ -49,11 +93,24 @@ class Pattern:
         """
         # number of input qubits
         self.width = width
-        self.seq = [["N", i] for i in range(width)]  # where command sequence is stored
+        self.__seq = ListWatcher([["N", i] for i in range(width)], lambda: self.__invalidate_graph())  # where command sequence is stored
         self.results = {}  # measurement results from the graph state simulator
         self.output_nodes = output_nodes  # output nodes
         self.Nnode = width  # total number of nodes in the graph state
         self._pauli_preprocessed = False  # flag for `measure_pauli` preprocessing completion
+        self.__graph = None
+
+    @property
+    def seq(self):
+        return self.__seq
+
+    @seq.setter
+    def seq(self, val):
+        self.__seq = ListWatcher(val, lambda: self.__invalidate_graph())
+        self.__graph = None
+
+    def __invalidate_graph(self):
+        self.__graph = None
 
     def add(self, cmd):
         """add command to the end of the pattern.
@@ -541,7 +598,7 @@ class Pattern:
         Nlist.sort()
         for N in Nlist:
             self.seq.remove(N)
-        self.seq = Nlist + self.seq
+        self.seq = Nlist + list(self.seq)
 
     def _move_byproduct_to_right(self):
         """Internal method to move the byproduct commands to the end of sequence,
@@ -899,13 +956,15 @@ class Pattern:
         edge_list : list
             list of tuples (i,j) specifying edges
         """
-        node_list, edge_list = [], []
-        for cmd in self.seq:
-            if cmd[0] == "N":
-                node_list.append(cmd[1])
-            elif cmd[0] == "E":
-                edge_list.append(cmd[1])
-        return node_list, edge_list
+        if self.__graph is None:
+            node_list, edge_list = [], []
+            for cmd in self.seq:
+                if cmd[0] == "N":
+                    node_list.append(cmd[1])
+                elif cmd[0] == "E":
+                    edge_list.append(cmd[1])
+            self.__graph = node_list, edge_list
+        return self.__graph
 
     def get_isolated_nodes(self):
         """Get isolated nodes.
