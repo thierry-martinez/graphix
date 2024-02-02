@@ -397,6 +397,9 @@ def get_min_depth(l_k):
     return max(l_k.values())
 
 
+# NOTE not called anywhere? Seems weird. The definition is an intersection
+
+
 def find_odd_neighbor(graph, candidate, vertices):
     """Returns the list containing the odd neighbor of a set of vertices.
 
@@ -415,6 +418,8 @@ def find_odd_neighbor(graph, candidate, vertices):
         list of indices for odd neighbor of set `vertices`.
     """
     out = []
+    # TODO this must be a set intersection & and not a symmetric difference ^
+    # but seems to be never called
     for c in candidate:
         if np.mod(len(set(graph.neighbors(c)) ^ vertices), 2) == 1:
             out.append(c)

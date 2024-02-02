@@ -52,6 +52,9 @@ class Pattern:
         """
         # number of input qubits
         self.width = width
+        # TODO
+        # self.seq
+        # self.add(["N", i] for i in range(width)])
         self.seq = [["N", i] for i in range(width)]  # where command sequence is stored
         self.results = {}  # measurement results from the graph state simulator
         self.input_nodes = input_nodes  # input nodes
@@ -726,9 +729,14 @@ class Pattern:
 
         Returns
         -------
-        connected: set of taple
+        connected: set of tuple
                 set of connected edges
         """
+        # TODO modify that by using the graph nx.graph.edges(node)? and cached get_graph()?
+        # like in def get_measurement_order_from_flow(self): with self.get_graph()
+        # FIXME
+        # BUG
+
         connected = set()
         for edge in edges:
             if edge[0] == node:
@@ -745,6 +753,7 @@ class Pattern:
         meas_order: list of int
             sub-optimal measurement order for classical simulation
         """
+        # NOTE calling get_graph
         nodes, edges = self.get_graph()
         nodes = set(nodes)
         edges = set(edges)
@@ -778,6 +787,7 @@ class Pattern:
         meas_order: list of int
             measurement order
         """
+        # NOTE calling get_graph
         nodes, edges = self.get_graph()
         G = nx.Graph()
         G.add_nodes_from(nodes)
@@ -793,7 +803,7 @@ class Pattern:
         for i in range(depth):
             k = depth - i
             nodes = layer[k]
-            meas_order += nodes
+            meas_order += nodes  # NOTE this is list concatenation
         return meas_order
 
     def get_measurement_order_from_gflow(self):
@@ -805,6 +815,7 @@ class Pattern:
         meas_order : list of int
             measurement order
         """
+        # NOTE calling get_graph
         nodes, edges = self.get_graph()
         G = nx.Graph()
         G.add_nodes_from(nodes)
@@ -922,6 +933,9 @@ class Pattern:
         max_degree = max([i for i in dict(degree).values()])
         return max_degree
 
+    # TODO functools.cache() It is called in get measurement order from (g)flow
+    #
+    # It is called in get measurement order from (g)flow
     def get_graph(self):
         """returns the list of nodes and edges from the command sequence,
         extracted from 'N' and 'E' commands.
@@ -1017,7 +1031,7 @@ class Pattern:
         Returns
         -------
         node_list : list
-            list of nodes that are entangled with speicifed node
+            list of nodes that are entangled with specified node
         """
         if not self.is_standard():
             self.standardize()
