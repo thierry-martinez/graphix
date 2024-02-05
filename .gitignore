@@ -11,3 +11,4 @@ docs/source/benchmarks/**
 .python-version
 .pre-commit-config.yaml
 graphix/sim/graphix.code-workspace
+graphix/graphix.code-workspace
