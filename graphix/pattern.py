@@ -52,15 +52,22 @@ class Pattern:
         """
         # number of input qubits
         self.width = width
-        # TODO
-        # self.seq
-        # self.add(["N", i] for i in range(width)])
-        self.seq = [["N", i] for i in range(width)]  # where command sequence is stored
+
         self.results = {}  # measurement results from the graph state simulator
         self.input_nodes = input_nodes  # input nodes
         self.output_nodes = output_nodes  # output nodes
         self.Nnode = width  # total number of nodes in the graph state
         self._pauli_preprocessed = False  # flag for `measure_pauli` preprocessing completion
+
+        # init version
+        # self.seq = [["N", i] for i in range(width)]  # where command sequence is stored
+        # nobody cares since always inpuut by hand
+        # self.seq = []
+
+        # intialisating using the `add`method. Requires Nnodes to be set.
+        self.seq = []
+        for i in range(width):
+            self.add(["N", i])
 
     def add(self, cmd):
         """add command to the end of the pattern.
@@ -1571,8 +1578,8 @@ class LocalPattern:
         list of node indices in a measurement order.
 
     signal_destination : dict
-       stores the set of nodes where dependent feedforward operations are performed, from the result of measurement at each node.
-       stored separately for each nodes, and for each kind of signal(Ms, Mt, X, Z).
+    stores the set of nodes where dependent feedforward operations are performed, from the result of measurement at each node.
+    stored separately for each nodes, and for each kind of signal(Ms, Mt, X, Z).
     """
 
     def __init__(self, nodes=dict(), input_nodes=[], output_nodes=[], morder=[]):
