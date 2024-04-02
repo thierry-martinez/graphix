@@ -211,8 +211,7 @@ class Statevec:
         i : int
             qubit index
         """
-        self.psi = np.tensordot(op, self.psi, (1, i))
-        self.psi = np.moveaxis(self.psi, 0, i)
+        self.psi = evolve_single(self.psi, op, i)
 
     def evolve(self, op, qargs):
         """Multi-qubit operation
@@ -382,11 +381,8 @@ class Statevec:
         -------
         complex : expectation value.
         """
-        st1 = deepcopy(self)
-        # st1.normalize()
-        # st2 = deepcopy(st1)
-        st1.evolve_single(op, loc)
-        return np.dot(self.psi.flatten().conjugate(), st1.psi.flatten())
+        psi1 = evolve_single(self.psi, op, loc)
+        return np.dot(self.psi.flatten().conjugate(), psi1.flatten())
 
     def expectation_value(self, op, qargs):
         """Expectation value of multi-qubit operator.
@@ -412,3 +408,20 @@ class Statevec:
 def _get_statevec_norm(psi):
     """returns norm of the state"""
     return np.sqrt(np.sum(psi.flatten().conj() * psi.flatten()))
+
+
+def evolve_single(psi, op, i):
+    """Single-qubit operation
+
+    Parameters
+    ----------
+    psi : numpy.ndarray
+        state vector
+    op : numpy.ndarray
+        2*2 matrix
+    i : int
+        qubit index
+    """
+    psi = np.tensordot(op, psi, (1, i))
+    psi = np.moveaxis(psi, 0, i)
+    return psi
