@@ -383,10 +383,10 @@ class Statevec:
         complex : expectation value.
         """
         st1 = deepcopy(self)
-        st1.normalize()
-        st2 = deepcopy(st1)
+        # st1.normalize()
+        # st2 = deepcopy(st1)
         st1.evolve_single(op, loc)
-        return np.dot(st2.psi.flatten().conjugate(), st1.psi.flatten())
+        return np.dot(self.psi.flatten().conjugate(), st1.psi.flatten())
 
     def expectation_value(self, op, qargs):
         """Expectation value of multi-qubit operator.
