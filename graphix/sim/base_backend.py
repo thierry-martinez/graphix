@@ -4,7 +4,7 @@ import graphix.pauli
 
 
 class Backend:
-    def __init__(self, pr_calc: bool = True):
+    def __init__(self, pr_calc: bool = True, rng=None):
         """
         Parameters
         ----------
@@ -14,6 +14,9 @@ class Backend:
         """
         # whether to compute the probability
         self.pr_calc = pr_calc
+        if rng is None:
+            rng = np.random.default_rng()
+        self.rng = rng
 
     def _perform_measure(self, cmd):
         s_signal = np.sum([self.results[j] for j in cmd[4]])
@@ -40,12 +43,12 @@ class Backend:
         if self.pr_calc:
             op_mat = op_mat_from_result(False)
             prob_0 = self.state.expectation_single(op_mat, loc)
-            result = np.random.rand() > prob_0
+            result = self.rng.random() > prob_0
             if result:
                 op_mat = op_mat_from_result(True)
         else:
             # choose the measurement result randomly
-            result = np.random.choice([0, 1])
+            result = self.rng.choice([0, 1])
             op_mat = op_mat_from_result(result)
         self.results[cmd[1]] = result
         self.state.evolve_single(op_mat, loc)

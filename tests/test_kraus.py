@@ -1,3 +1,4 @@
+import pytest
 import unittest
 
 import numpy as np
@@ -19,7 +20,7 @@ class TestChannel(unittest.TestCase):
     def test_init_with_data_success(self):
         "test for successful intialization"
 
-        prob = np.random.rand()
+        prob = pytest.rng.random()
         mychannel = KrausChannel(
             [
                 {"coef": np.sqrt(1 - prob), "operator": np.array([[1.0, 0.0], [0.0, 1.0]])},
@@ -35,7 +36,7 @@ class TestChannel(unittest.TestCase):
     def test_init_with_data_fail(self):
         "test for unsuccessful intialization"
 
-        prob = np.random.rand()
+        prob = pytest.rng.random()
 
         # empty data
         with self.assertRaises(ValueError):
@@ -94,8 +95,8 @@ class TestChannel(unittest.TestCase):
         with self.assertRaises(ValueError):
             mychannel = KrausChannel(
                 [
-                    {"coef": np.sqrt(1 - prob), "operator": np.random.rand(3, 3)},
-                    {"coef": np.sqrt(prob), "operator": np.random.rand(3, 3)},
+                    {"coef": np.sqrt(1 - prob), "operator": pytest.rng.random((3, 3))},
+                    {"coef": np.sqrt(prob), "operator": pytest.rng.random((3, 3))},
                 ]
             )
 
@@ -120,11 +121,11 @@ class TestChannel(unittest.TestCase):
         # incorrect rank (number of kraus_operators)
         # use a random channel to do that.
         with self.assertRaises(ValueError):
-            randobj.rand_channel_kraus(dim=2**2, rank=20)
+            randobj.rand_channel_kraus(dim=2**2, rank=20, rng=pytest.rng)
 
     def test_dephasing_channel(self):
 
-        prob = np.random.rand()
+        prob = pytest.rng.random()
         data = [
             {"coef": np.sqrt(1 - prob), "operator": np.array([[1.0, 0.0], [0.0, 1.0]])},
             {"coef": np.sqrt(prob), "operator": Ops.z},
@@ -141,7 +142,7 @@ class TestChannel(unittest.TestCase):
 
     def test_depolarising_channel(self):
 
-        prob = np.random.rand()
+        prob = pytest.rng.random()
         data = [
             {"coef": np.sqrt(1 - prob), "operator": np.eye(2)},
             {"coef": np.sqrt(prob / 3.0), "operator": Ops.x},
@@ -162,7 +163,7 @@ class TestChannel(unittest.TestCase):
 
     def test_2_qubit_depolarising_channel(self):
 
-        prob = np.random.rand()
+        prob = pytest.rng.random()
         data = [
             {"coef": np.sqrt(1 - prob), "operator": np.kron(np.eye(2), np.eye(2))},
             {"coef": np.sqrt(prob / 15.0), "operator": np.kron(Ops.x, Ops.x)},
@@ -195,7 +196,7 @@ class TestChannel(unittest.TestCase):
 
     def test_2_qubit_depolarising_tensor_channel(self):
 
-        prob = np.random.rand()
+        prob = pytest.rng.random()
         data = [
             {"coef": 1 - prob, "operator": np.kron(np.eye(2), np.eye(2))},
             {"coef": prob / 3.0, "operator": np.kron(Ops.x, Ops.x)},
@@ -228,5 +229,4 @@ class TestChannel(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    np.random.seed(2)
     unittest.main()

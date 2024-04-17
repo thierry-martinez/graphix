@@ -10,7 +10,7 @@ import graphix.sim.base_backend
 class StatevectorBackend(graphix.sim.base_backend.Backend):
     """MBQC simulator with statevector method."""
 
-    def __init__(self, pattern, max_qubit_num=20, pr_calc=True):
+    def __init__(self, pattern, max_qubit_num=20, pr_calc=True, rng=None):
         """
         Parameters
         -----------
@@ -37,7 +37,7 @@ class StatevectorBackend(graphix.sim.base_backend.Backend):
         self.max_qubit_num = max_qubit_num
         if pattern.max_space() > max_qubit_num:
             raise ValueError("Pattern.max_space is larger than max_qubit_num. Increase max_qubit_num and try again")
-        super().__init__(pr_calc)
+        super().__init__(pr_calc=pr_calc, rng=rng)
 
     def qubit_dim(self):
         """Returns the qubit number in the internal statevector

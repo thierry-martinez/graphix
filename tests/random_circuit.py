@@ -47,8 +47,9 @@ def entangler_rzz(circuit, pairs, rng):
         circuit.rzz(a, b, rng.random())
 
 
-def generate_gate(nqubits, depth, pairs, use_rzz=False, seed=None):
-    rng = get_rng(seed)
+def generate_gate(nqubits, depth, pairs, use_rzz=False, seed=None, rng=None):
+    if rng is None:
+        rng = get_rng(seed)
     circuit = Circuit(nqubits)
     first_rotation(circuit, nqubits, rng)
     entangler(circuit, pairs)
@@ -87,8 +88,9 @@ def gentriplet(n_qubits, count, rng):
     return triplets
 
 
-def get_rand_circuit(nqubits, depth, use_rzz=False, use_ccx=False, seed=None):
-    rng = get_rng(seed)
+def get_rand_circuit(nqubits, depth, use_rzz=False, use_ccx=False, seed=None, rng=None):
+    if rng is None:
+        rng = get_rng(seed)
     circuit = Circuit(nqubits)
     gate_choice = [0, 1, 2, 3, 4, 5, 6, 7]
     for i in range(depth):

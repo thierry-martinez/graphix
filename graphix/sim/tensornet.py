@@ -13,7 +13,7 @@ class TensorNetworkBackend:
     Executes the measurement pattern using TN expression of graph states.
     """
 
-    def __init__(self, pattern, graph_prep="auto", **kwargs):
+    def __init__(self, pattern, graph_prep="auto", rng=None, **kwargs):
         """
 
         Parameters
@@ -49,6 +49,10 @@ class TensorNetworkBackend:
         else:
             raise ValueError(f"Invalid graph preparation strategy: {graph_prep}")
 
+        if rng is None:
+            rng = np.random.default_rng()
+        self.rng = rng
+
         if self.graph_prep == "parallel":
             if not pattern.is_standard():
                 raise ValueError("parallel preparation strategy does not support not-standardized pattern")
@@ -57,12 +61,14 @@ class TensorNetworkBackend:
                 graph_nodes=nodes,
                 graph_edges=edges,
                 default_output_nodes=pattern.output_nodes,
+                rng=rng,
                 **kwargs,
             )
         elif self.graph_prep == "sequential":
-            self.state = MBQCTensorNet(default_output_nodes=pattern.output_nodes, **kwargs)
+            self.state = MBQCTensorNet(default_output_nodes=pattern.output_nodes, rng=rng, **kwargs)
             self._decomposed_cz = _get_decomposed_cz()
         self._isolated_nodes = pattern.get_isolated_nodes()
+
 
     def add_nodes(self, nodes):
         """Add nodes to the network
@@ -127,12 +133,12 @@ class TensorNetworkBackend:
             vector = self.state.get_open_tensor_from_index(cmd[1])
             probs = np.abs(vector) ** 2
             probs = probs / (np.sum(probs))
-            result = np.random.choice([0, 1], p=probs)
+            result = self.rng.choice([0, 1], p=probs)
             self.results[cmd[1]] = result
             buffer = 1 / probs[result] ** 0.5
         else:
             # choose the measurement result randomly
-            result = np.random.choice([0, 1])
+            result = self.rng.choice([0, 1])
             self.results[cmd[1]] = result
             buffer = 2**0.5
 
@@ -194,6 +200,7 @@ class MBQCTensorNet(TensorNetwork):
         graph_edges=None,
         default_output_nodes=None,
         ts=[],
+        rng=None,
         **kwargs,
     ):
         """
@@ -221,6 +228,9 @@ class MBQCTensorNet(TensorNetwork):
         # prepare the graph state if graph_nodes and graph_edges are given
         if graph_nodes is not None and graph_edges is not None:
             self.set_graph_state(graph_nodes, graph_edges)
+        if rng is None:
+            rng = np.random.default_rng()
+        self.rng = rng
 
     def get_open_tensor_from_index(self, index):
         """Get tensor specified by node index. The tensor has a dangling edge.
@@ -348,7 +358,7 @@ class MBQCTensorNet(TensorNetwork):
             if outcome is not None:
                 result = outcome
             else:
-                result = np.random.choice([0, 1])
+                result = self.rng.choice([0, 1])
             # Basis state to be projected
             if type(basis) == np.ndarray:
                 if outcome is not None:

@@ -1,7 +1,7 @@
 """
 quantum states and operators
 """
-
+import numbers
 import numpy as np
 from itertools import product
 from functools import reduce
@@ -117,7 +117,7 @@ class Ops:
         :rtype: np.ndarray
         """
 
-        if isinstance(n_qubits, int):
+        if isinstance(n_qubits, numbers.Integral):
             if not 1 <= n_qubits:
                 raise ValueError(f"The number of qubits must be an integer <= 1 and not {n_qubits}.")
         else:
