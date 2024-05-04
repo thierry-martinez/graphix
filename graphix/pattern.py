@@ -369,21 +369,21 @@ class Pattern:
         is_standard : bool
             True if the pattern is standard
         """
-        order_dict = {
-            "N": ["N", "E", "M", "X", "Z", "C"],
-            "E": ["E", "M", "X", "Z", "C"],
-            "M": ["M", "X", "Z", "C"],
-            "X": ["X", "Z", "C"],
-            "Z": ["X", "Z", "C"],
-            "C": ["X", "Z", "C"],
-        }
-        result = True
-        op_ref = "N"
-        for cmd in self.__seq:
-            op = cmd.kind
-            result = result & (op in order_dict[op_ref])
-            op_ref = op
-        return result
+        it = iter(self)
+        try:
+            kind = next(it).kind
+            while kind == "N":
+                kind = next(it).kind
+            while kind == "E":
+                kind = next(it).kind
+            while kind == "M":
+                kind = next(it).kind
+            xzc = {"X", "Z", "C"}
+            while kind in xzc:
+                kind = next(it).kind
+            return False
+        except StopIteration:
+            return True
 
     def shift_signals(self, method="local"):
         """Performs signal shifting procedure
