@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from fantastic import BaseModel
 import enum
 
 

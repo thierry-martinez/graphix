@@ -1,6 +1,6 @@
 """Data validator command classes."""
 
-from pydantic import BaseModel
+from fantastic import BaseModel
 from typing import Union, Literal
 import enum
 
