@@ -2,6 +2,8 @@
 Pauli gates ± {1,j} × {I, X, Y, Z}
 """
 
+from __future__ import annotations
+
 import enum
 import typing
 
@@ -168,7 +170,7 @@ class Plane(enum.Enum):
         return tuple(result)
 
     @staticmethod
-    def from_axes(a: Axis, b: Axis) -> "Plane":
+    def from_axes(a: Axis, b: Axis) -> Plane:
         if b.value < a.value:
             a, b = b, a
         # match a, b:
@@ -202,7 +204,7 @@ class Pauli:
         self.__unit = unit
 
     @staticmethod
-    def from_axis(axis: Axis) -> "Pauli":
+    def from_axis(axis: Axis) -> Pauli:
         return Pauli(IXYZ[axis.name], UNIT)
 
     @property
@@ -310,3 +312,47 @@ class MeasureUpdate(pydantic.BaseModel):
         if exchange:
             add_term = np.pi / 2 - add_term
         return MeasureUpdate(new_plane=new_plane, coeff=coeff, add_term=add_term)
+
+
+class String:
+    def __init__(self, d: dict[int, Pauli] | None = None) -> None:
+        if d:
+            self.__dict = {k: v for k, v in d.items() if v != I}
+        else:
+            self.__dict = dict()
+
+    @classmethod
+    def __take_dict(cls, d: dict[int, Pauli]) -> String:
+        result = cls.__new__(cls)
+        result.__dict = d
+        return result
+
+    def __getitem__(self, index: int) -> Pauli:
+        return self.__dict.get(index, I)
+
+    def __iter__(self) -> typing.Iterable[int]:
+        return self.__dict.keys()
+
+    def items(self) -> typing.Iterable[typing.Tuple[int, Pauli]]:
+        return self.__dict.items()
+
+    def __repr__(self) -> str:
+        return repr(self.__dict)
+
+    def __str__(self) -> str:
+        return str(self.__dict)
+
+    def __matmul__(self, other):
+        if isinstance(other, String):
+            d = self.__dict.copy()
+            for k, v in other.items():
+                try:
+                    p = d[k] @ v
+                    if p == I:
+                        del d[k]
+                    else:
+                        d[k] = p
+                except KeyError:
+                    d[k] = v
+            return String.__take_dict(d)
+        return NotImplemented

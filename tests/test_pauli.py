@@ -73,3 +73,31 @@ class TestPauli:
         for i in range(3):
             op_mat += (-1) ** (choice) * vec[i] * graphix.clifford.CLIFFORD[i + 1] / 2
         assert np.allclose(op_mat, op_mat_ref) or np.allclose(op_mat, -op_mat_ref)
+
+
+class TestPauliString:
+    def test_pauli_string_init(self) -> None:
+        d = { 0: graphix.pauli.I, 1: graphix.pauli.X }
+        ps = graphix.pauli.String(d)
+        assert list(ps.items()) == [(1, graphix.pauli.X)]
+        d[2] = graphix.pauli.Y
+        assert list(ps.items()) == [(1, graphix.pauli.X)]
+        ps = graphix.pauli.String()
+        assert list(ps.items()) == []
+
+    def test_pauli_string_get(self) -> None:
+        ps = graphix.pauli.String({ 0: graphix.pauli.X, 1: graphix.pauli.Y })
+        assert ps[0] == graphix.pauli.X
+        assert ps[1] == graphix.pauli.Y
+        assert ps[2] == graphix.pauli.I
+
+    def test_pauli_string_matmul(self) -> None:
+        ps0 = graphix.pauli.String({ 0: graphix.pauli.X, 1: graphix.pauli.Y })
+        ps1 = graphix.pauli.String({ 1: graphix.pauli.Y, 2: graphix.pauli.Z })
+        ps01 = ps0 @ ps1
+        assert list(ps0.items()) == [(0, graphix.pauli.X), (1, graphix.pauli.Y)]
+        assert list(ps1.items()) == [(1, graphix.pauli.Y), (2, graphix.pauli.Z)]
+        assert list(ps01.items()) == [(0, graphix.pauli.X), (2, graphix.pauli.Z)]
+        ps2 = graphix.pauli.String({ 0: graphix.pauli.Y, 1: graphix.pauli.Z })
+        ps02 = ps0 @ ps2
+        assert list(ps02.items()) == [(0, 1j * graphix.pauli.Z), (1, 1j * graphix.pauli.X)]
