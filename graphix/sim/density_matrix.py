@@ -14,6 +14,7 @@ from graphix.sim.statevec import CNOT_TENSOR, CZ_TENSOR, SWAP_TENSOR
 from graphix.sim.base_backend import Backend
 from graphix.ops import Ops
 import graphix.command
+import dm_simu_rs
 
 
 class DensityMatrix:
@@ -293,6 +294,63 @@ class DensityMatrix:
         if not np.allclose(self.rho.trace(), 1.0):
             raise ValueError("The output density matrix is not normalized, check the channel definition.")
 
+class RustDensityMatrix:
+    """Rust density matrix simulator"""
+    def __init__(self, nqubit=1, plus_states=True):
+        if plus_states:
+            state = dm_simu_rs.Plus
+        else:
+            state = dm_simu_rs.Zero
+        self.rho = dm_simu_rs.new_dm(nqubit, state)
+    
+    def __repr__(self):
+        return f"DensityMatrix, data={dm_simu_rs.get_dm(self.rho)}, nqubits={dm_simu_rs.get_nqubits(self.rho)}"
+
+    def evolve_single(self, op: np.ndarray, target: int):
+        dm_simu_rs.evolve_single(self.rho, op, target)
+    
+    def evolve(self, op: np.ndarray, qargs: list[int]):
+        dm_simu_rs.evolve(self.rho, op, qargs)
+
+    def apply_channel(self, channel: KrausChannel, qargs):
+        """Applies a channel to a density matrix.
+
+        Parameters
+        ----------
+        :rho: density matrix.
+        channel: :class:`graphix.channel.KrausChannel` object
+            KrausChannel to be applied to the density matrix
+        qargs: target qubit indices
+
+        Returns
+        -------
+        nothing
+
+        Raises
+        ------
+        ValueError
+            If the final density matrix is not normalized after application of the channel.
+            This shouldn't happen since :class:`graphix.channel.KrausChannel` objects are normalized by construction.
+        ....
+        """
+
+        result_array = np.zeros((2**self.Nqubit, 2**self.Nqubit), dtype=np.complex128)
+        tmp_dm = deepcopy(self)
+
+        if not isinstance(channel, KrausChannel):
+            raise TypeError("Can't apply a channel that is not a Channel object.")
+
+        for k_op in channel.kraus_ops:
+            tmp_dm.evolve(k_op["operator"], qargs)
+            result_array += k_op["coef"] * np.conj(k_op["coef"]) * tmp_dm.rho
+            # reinitialize to input density matrix
+            tmp_dm = deepcopy(self)
+
+        # Performance?
+        self.rho = deepcopy(result_array)
+
+        if not np.allclose(self.rho.trace(), 1.0):
+            raise ValueError("The output density matrix is not normalized, check the channel definition.")
 
 class DensityMatrixBackend(Backend):
     """MBQC simulator with density matrix method."""
