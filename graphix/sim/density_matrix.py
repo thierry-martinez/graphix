@@ -2,6 +2,7 @@
 
 Simulate MBQC with density matrix representation.
 """
+from __future__ import annotations
 
 from copy import deepcopy
 
@@ -355,7 +356,7 @@ class RustDensityMatrix:
 class DensityMatrixBackend(Backend):
     """MBQC simulator with density matrix method."""
 
-    def __init__(self, pattern, max_qubit_num=12, pr_calc=True):
+    def __init__(self, pattern, max_qubit_num=12, pr_calc=True, impl=RustDensityMatrix):
         """
         Parameters
         ----------
@@ -378,6 +379,7 @@ class DensityMatrixBackend(Backend):
         self.max_qubit_num = max_qubit_num
         if pattern.max_space() > max_qubit_num:
             raise ValueError("Pattern.max_space is larger than max_qubit_num. Increase max_qubit_num and try again.")
+        self.impl = impl
         super().__init__(pr_calc)
 
     def add_nodes(self, nodes, qubit_to_add=None):
@@ -392,12 +394,12 @@ class DensityMatrixBackend(Backend):
             qubit to be added to the graph states
         """
         if not self.state:
-            self.state = DensityMatrix(nqubit=0)
+            self.state = self.impl(nqubit=0)
         n = len(nodes)
         if qubit_to_add is None:
-            dm_to_add = DensityMatrix(nqubit=n)
+            dm_to_add = self.impl(nqubit=n)
         else:
-            assert isinstance(qubit_to_add, DensityMatrix)
+            assert isinstance(qubit_to_add, self.impl)
             assert qubit_to_add.nqubit == 1
             dm_to_add = qubit_to_add
         self.state.tensor(dm_to_add)
