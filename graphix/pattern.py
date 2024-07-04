@@ -1925,10 +1925,8 @@ def measure_pauli(pattern, leave_input, copy=False, use_rustworkx=False):
     # update command sequence
     vops = graph_state.get_vops()
     new_seq = []
-    # TO CHECK: why the order is relevant?
-    for index in graph_state.nodes:
-        if index not in new_inputs:
-            new_seq.append(["N", index])
+    for index in set(graph_state.nodes) - set(new_inputs):
+        new_seq.append(["N", index])
     for edge in graph_state.edges:
         new_seq.append(["E", edge])
     for cmd in pattern:
