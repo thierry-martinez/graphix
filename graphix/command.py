@@ -42,6 +42,10 @@ class N(Command):
     node: Node
 
 
+def is_int(number: float) -> bool:
+    return int(number) == number
+
+
 class M(Command):
     """
     Measurement command. By default the plane is set to 'XY', the angle to 0, empty domains and identity vop.
@@ -53,6 +57,9 @@ class M(Command):
     angle: float = 0.0
     s_domain: list[Node] = []
     t_domain: list[Node] = []
+
+    def is_pauli(self) -> bool:
+        return is_int(2 * self.angle)
 
     def clifford(self, clifford: Clifford) -> M:
         s_domain = self.s_domain

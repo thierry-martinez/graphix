@@ -364,6 +364,38 @@ class TestPattern:
             state_p = pattern.simulate_pattern(pr_calc=False, rng=IterGenerator(iter(outcomes_p)))
             assert np.abs(np.dot(state_p.flatten().conjugate(), state_ref.flatten())) == pytest.approx(1)
 
+    @pytest.mark.parametrize("jumps", range(1, 11))
+    # TODO: tensor network backend is excluded because "parallel preparation strategy does not support not-standardized pattern".
+    def test_extract_pauli_nodes(self, fx_bg: PCG64, jumps: int, use_rustworkx: bool = True) -> None:
+        rng = Generator(fx_bg.jumped(jumps))
+        nqubits = 3
+        depth = 3
+        circuit = rc.get_rand_circuit(nqubits, depth, rng)
+        pattern = circuit.transpile().pattern
+        pattern.standardize(method="global")
+        pattern.shift_signals(method="global")
+        pattern_ref = pattern.copy()
+        pauli_nodes = pattern.extract_pauli_nodes()
+        new_pattern = Pattern(input_nodes=pattern.input_nodes)
+        for cmd in pattern:
+            if cmd.kind == CommandKind.N or cmd.kind == CommandKind.E:
+                new_pattern.add(cmd)
+            else:
+                break
+        for measure_cmd in pauli_nodes.values():
+            new_pattern.add(measure_cmd)
+        for cmd in pattern:
+            if cmd.kind == CommandKind.N or cmd.kind == CommandKind.E:
+                continue
+            new_pattern.add(cmd)
+        pattern_ref.perform_pauli_measurements(use_rustworkx=True)
+        new_pattern.perform_pauli_measurements(use_rustworkx=True)
+        new_pattern.minimize_space()
+        pattern_ref.minimize_space()
+        state_ref = pattern_ref.simulate_pattern()
+        state_p = new_pattern.simulate_pattern()
+        assert np.abs(np.dot(state_p.flatten().conjugate(), state_ref.flatten())) == pytest.approx(1)
+
 
 def cp(circuit: Circuit, theta: float, control: int, target: int) -> None:
     """Controlled rotation gate, decomposed"""

@@ -1427,6 +1427,49 @@ class Pattern:
         result.results = self.results.copy()
         return result
 
+    def extract_pauli_nodes(self, leave_nodes: set[int] = set()) -> dict[int, tuple[command.M]]:
+        pauli_nodes = {}
+        shift_domains = {}
+        index = 0
+        while index < len(self.__seq):
+            cmd = self.__seq[index]
+
+            def expand_domain(domain):
+                return [
+                    new_node
+                    for original_node in domain
+                    for new_node in [original_node] + shift_domains.get(original_node, [])
+                ]
+
+            if cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:
+                cmd.domain = expand_domain(cmd.domain)
+            if cmd.kind == CommandKind.M:
+                cmd.s_domain = expand_domain(cmd.s_domain)
+                cmd.t_domain = expand_domain(cmd.t_domain)
+                if cmd.is_pauli() and cmd.node not in leave_nodes:
+                    if cmd.plane == Plane.XY:
+                        if cmd.angle % 2 == 0 or cmd.angle % 2 == 1:
+                            shift_domains[cmd.node] = cmd.t_domain
+                        elif cmd.angle % 2 == 0.5 or cmd.angle % 2 == 1.5:
+                            shift_domains[cmd.node] = cmd.s_domain + cmd.t_domain
+                    elif cmd.plane == Plane.YZ:
+                        if cmd.angle % 2 == 0 or cmd.angle % 2 == 1:
+                            shift_domains[cmd.node] = cmd.s_domain
+                        elif cmd.angle % 2 == 0.5 or cmd.angle % 2 == 1.5:
+                            shift_domains[cmd.node] = cmd.s_domain + cmd.t_domain
+                    elif cmd.plane == Plane.XZ:
+                        if cmd.angle % 2 == 0 or cmd.angle % 2 == 1:
+                            shift_domains[cmd.node] = cmd.s_domain
+                        elif cmd.angle % 2 == 0.5 or cmd.angle % 2 == 1.5:
+                            shift_domains[cmd.node] = cmd.t_domain
+                    cmd.s_domain = []
+                    cmd.t_domain = []
+                    pauli_nodes[cmd.node] = cmd
+                    del self.__seq[index]
+                    index -= 1
+            index += 1
+        return pauli_nodes
+
 
 class CommandNode:
     """A node decorated with a distributed command sequence.
