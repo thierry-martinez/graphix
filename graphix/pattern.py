@@ -13,6 +13,7 @@ import typing_extensions
 import graphix.clifford
 import graphix.pauli
 from graphix import command
+from graphix.command import CommandKind
 from graphix.clifford import CLIFFORD_CONJ, CLIFFORD_TO_QASM3
 from graphix.device_interface import PatternRunner
 from graphix.gflow import find_flow, find_gflow, get_layers
@@ -1405,13 +1406,55 @@ class Pattern:
 
     def copy(self) -> Pattern:
         result = self.__new__(self.__class__)
-        result.__seq = [cmd.model_copy() for cmd in self.__seq]
+        result.__seq = [cmd.model_copy(deep=True) for cmd in self.__seq]
         result.__input_nodes = self.__input_nodes.copy()
         result.__output_nodes = self.__output_nodes.copy()
         result.__Nnode = self.__Nnode
         result._pauli_preprocessed = self._pauli_preprocessed
         result.results = self.results.copy()
         return result
+
+    def extract_pauli_nodes(self, leave_nodes: set[int] | None = None) -> dict[int, tuple[command.M]]:
+        if leave_nodes is None:
+            leave_nodes = set()
+        pauli_nodes = {}
+        shift_domains = {}
+        index = 0
+        while index < len(self.__seq):
+            cmd = self.__seq[index]
+
+            def expand_domain(domain):
+                for node in domain & shift_domains.keys():
+                    domain ^= shift_domains[node]
+
+            if cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:
+                expand_domain(cmd.domain)
+            if cmd.kind == CommandKind.M:
+                expand_domain(cmd.s_domain)
+                expand_domain(cmd.t_domain)
+                if cmd.is_pauli() is not None and cmd.node not in leave_nodes:
+                    if cmd.plane == Plane.XY:
+                        if cmd.angle % 2 == 0 or cmd.angle % 2 == 1:
+                            shift_domains[cmd.node] = cmd.t_domain
+                        elif cmd.angle % 2 == 0.5 or cmd.angle % 2 == 1.5:
+                            shift_domains[cmd.node] = cmd.s_domain ^ cmd.t_domain
+                    elif cmd.plane == Plane.YZ:
+                        if cmd.angle % 2 == 0 or cmd.angle % 2 == 1:
+                            shift_domains[cmd.node] = cmd.s_domain
+                        elif cmd.angle % 2 == 0.5 or cmd.angle % 2 == 1.5:
+                            shift_domains[cmd.node] = cmd.s_domain ^ cmd.t_domain
+                    elif cmd.plane == Plane.XZ:
+                        if cmd.angle % 2 == 0 or cmd.angle % 2 == 1:
+                            shift_domains[cmd.node] = cmd.s_domain
+                        elif cmd.angle % 2 == 0.5 or cmd.angle % 2 == 1.5:
+                            shift_domains[cmd.node] = cmd.t_domain
+                    cmd.s_domain = set()
+                    cmd.t_domain = set()
+                    pauli_nodes[cmd.node] = cmd
+                    del self.__seq[index]
+                    index -= 1
+            index += 1
+        return pauli_nodes
 
 
 class CommandNode:
