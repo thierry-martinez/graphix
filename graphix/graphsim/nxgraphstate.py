@@ -9,10 +9,10 @@ from .basegraphstate import BaseGraphState
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from networkx.classes.reportviews import EdgeView, NodeView
+from networkx.classes.reportviews import EdgeView, NodeView
 
 
-class NXGraphState(BaseGraphState):
+class NXGraphState(BaseGraphState[NodeView, EdgeView, nx.Graph]):
     """Graph state simulator implemented with networkx.
     See :class:`~graphix.graphsim.basegraphstate.BaseGraphState` for more details.
     """

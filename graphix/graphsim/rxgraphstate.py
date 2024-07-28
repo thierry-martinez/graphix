@@ -18,7 +18,7 @@ except ModuleNotFoundError as e:
     raise RuntimeError(msg) from e
 
 
-class RXGraphState(BaseGraphState):
+class RXGraphState(BaseGraphState[NodeList, EdgeList, rx.PyGraph]):
     """Graph state simulator implemented with rustworkx.
     See :class:`~graphix.graphsim.basegraphstate.BaseGraphState` for more details.
     """

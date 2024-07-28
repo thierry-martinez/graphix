@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import networkx as nx
 
@@ -12,8 +12,14 @@ from graphix.sim.statevec import Statevec
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+NodesObject = TypeVar("NodesObject")
+EdgesObject = TypeVar("EdgesObject")
+GraphObject = TypeVar("GraphObject")
 
-class BaseGraphState(ABC):
+
+# With Python 3.12:
+# class BaseGraphState[NodesObject, EdgesObject, GraphObject](ABC):
+class BaseGraphState(ABC, Generic[NodesObject, EdgesObject, GraphObject]):
     """Base class for graph state simulator.
 
     Performs Pauli measurements on graph states.
@@ -31,17 +37,17 @@ class BaseGraphState(ABC):
 
     @property
     @abstractmethod
-    def nodes(self) -> Any:
+    def nodes(self) -> NodesObject:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def edges(self) -> Any:
+    def edges(self) -> EdgesObject:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def graph(self) -> Any:
+    def graph(self) -> GraphObject:
         raise NotImplementedError
 
     @abstractmethod
@@ -68,7 +74,7 @@ class BaseGraphState(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def subgraph(self, nodes: list) -> Any:
+    def subgraph(self, nodes: list) -> GraphObject:
         """Returns a subgraph of the graph.
 
         Parameters
