@@ -1294,7 +1294,7 @@ class Pattern:
         result = exe.run()
         return result
 
-    def perform_pauli_measurements(self, leave_input=False, use_rustworkx=False):
+    def perform_pauli_measurements(self, leave_input=False, use_rustworkx: bool | None = None):
         """Perform Pauli measurements in the pattern using
         efficient stabilizer simulator.
 
@@ -1839,7 +1839,7 @@ def xor_combination_list(list1, list2):
     return result
 
 
-def measure_pauli(pattern, leave_input, copy=False, use_rustworkx=False):
+def measure_pauli(pattern, leave_input, copy=False, use_rustworkx: bool | None = None):
     """Perform Pauli measurement of a pattern by fast graph state simulator
     uses the decorated-graph method implemented in graphix.graphsim to perform
     the measurements in Pauli bases, and then sort remaining nodes back into
