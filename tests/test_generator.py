@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import graphix.pauli
-import tests.random_circuit as rc
+from graphix.random_objects import rand_circuit, rand_gate
 from graphix.generator import generate_from_graph
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ class TestGenerator:
         nqubits = 3
         depth = 2
         pairs = [(0, 1), (1, 2)]
-        circuit = rc.generate_gate(nqubits, depth, pairs, fx_rng)
+        circuit = rand_gate(nqubits, depth, pairs, fx_rng)
         # transpile into graph
         pattern = circuit.transpile().pattern
         pattern.standardize()
