@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import abc
 import dataclasses
-from abc import ABC
 from enum import Enum
-from typing import Any, Literal
 
 import numpy as np
 import typing_extensions
@@ -16,6 +13,8 @@ from graphix.pauli import Pauli, Plane, Sign
 from graphix.states import BasicStates, State
 
 if typing_extensions.TYPE_CHECKING:
+    from typing import Literal
+
     from graphix.clifford import Clifford
 
 Node = int
@@ -31,14 +30,12 @@ class CommandKind(Enum):
     S = "S"
 
 
-class Command(ABC):
+class Command:
     """
     Base command class.
     """
 
-    @property
-    @abc.abstractmethod
-    def kind(self) -> Any: ...
+    kind: CommandKind
 
 
 # Decorator required
@@ -62,10 +59,7 @@ class N(Command):
     node: Node
     state: State = dataclasses.field(default_factory=lambda: BasicStates.PLUS)
 
-    @property
-    @typing_extensions.override
-    def kind(self) -> Literal[CommandKind.N]:
-        return CommandKind.N
+    kind: Literal[CommandKind.N] = CommandKind.N
 
 
 # Decorator required
@@ -85,10 +79,7 @@ class M(BaseM):
     s_domain: set[Node] = dataclasses.field(default_factory=set)
     t_domain: set[Node] = dataclasses.field(default_factory=set)
 
-    @property
-    @typing_extensions.override
-    def kind(self) -> Literal[CommandKind.M]:
-        return CommandKind.M
+    kind: Literal[CommandKind.M] = CommandKind.M
 
     def clifford(self, clifford_gate: Clifford) -> M:
         s_domain = self.s_domain
@@ -116,10 +107,7 @@ class E(Command):
 
     nodes: tuple[Node, Node]
 
-    @property
-    @typing_extensions.override
-    def kind(self) -> Literal[CommandKind.E]:
-        return CommandKind.E
+    kind: Literal[CommandKind.E] = CommandKind.E
 
 
 @dataclasses.dataclass
@@ -131,10 +119,7 @@ class C(Command):
     node: Node
     clifford: Clifford
 
-    @property
-    @typing_extensions.override
-    def kind(self) -> Literal[CommandKind.C]:
-        return CommandKind.C
+    kind: Literal[CommandKind.C] = CommandKind.C
 
 
 @dataclasses.dataclass
@@ -143,10 +128,7 @@ class X(Correction):
     X correction command.
     """
 
-    @property
-    @typing_extensions.override
-    def kind(self) -> Literal[CommandKind.X]:
-        return CommandKind.X
+    kind: Literal[CommandKind.X] = CommandKind.X
 
 
 @dataclasses.dataclass
@@ -155,10 +137,7 @@ class Z(Correction):
     Z correction command.
     """
 
-    @property
-    @typing_extensions.override
-    def kind(self) -> Literal[CommandKind.Z]:
-        return CommandKind.Z
+    kind: Literal[CommandKind.Z] = CommandKind.Z
 
 
 @dataclasses.dataclass
@@ -170,10 +149,7 @@ class S(Command):
     node: Node
     domain: set[Node] = dataclasses.field(default_factory=set)
 
-    @property
-    @typing_extensions.override
-    def kind(self) -> Literal[CommandKind.S]:
-        return CommandKind.S
+    kind: Literal[CommandKind.S] = CommandKind.S
 
 
 @dataclasses.dataclass
