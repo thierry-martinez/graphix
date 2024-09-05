@@ -19,6 +19,7 @@ import graphix.sim.statevec
 from graphix import command, instruction
 from graphix.clifford import H
 from graphix.command import CommandKind, E, M, N, X, Z
+from graphix.instruction import InstructionKind
 from graphix.ops import Ops
 from graphix.pattern import Pattern
 from graphix.pauli import Plane
@@ -77,6 +78,44 @@ class Circuit:
         self.width = width
         self.instruction: list[instruction.Instruction] = []
         self.active_qubits = set(range(width))
+
+    def to_qiskit(self):
+        from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+
+        qr = QuantumRegister(self.width)
+        cr = ClassicalRegister(0)
+        circ = QuantumCircuit(qr, cr)
+        for instr in self.instruction:
+            kind = instr.kind
+            if kind == InstructionKind.CNOT:
+                circ.cx(qr[instr.control], qr[instr.target])
+            elif kind == InstructionKind.SWAP:
+                circ.swap(instr.targets[0], instr.targets[1])
+            elif kind == InstructionKind.H:
+                circ.h(instr.target)
+            elif kind == InstructionKind.S:
+                circ.s(instr.target)
+            elif kind == InstructionKind.X:
+                circ.x(instr.target)
+            elif kind == InstructionKind.Y:
+                circ.y(instr.target)
+            elif kind == InstructionKind.Z:
+                circ.z(instr.target)
+            elif kind == InstructionKind.I:
+                circ.i(instr.target)
+            elif kind == InstructionKind.M:
+                circ.m(instr.target)
+            elif kind == InstructionKind.RX:
+                circ.rx(instr.angle, instr.target)
+            elif kind == InstructionKind.RY:
+                circ.ry(instr.angle, instr.target)
+            elif kind == InstructionKind.RZ:
+                circ.rz(instr.angle, instr.target)
+            elif kind == InstructionKind.CCX:
+                circ.ccx(instr.controls[0], instr.controls[1], instr.target)
+            elif kind == InstructionKind.RZZ:
+                circ.rzz(instr.angle, instr.control, instr.target)
+        return circ
 
     def cnot(self, control: int, target: int):
         """CNOT gate
