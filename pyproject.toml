@@ -96,7 +96,6 @@ filterwarnings = ["ignore:Couldn't import `kahypar`"]
 
 [tool.mypy]
 disable_error_code = [
-  "type-arg",
   "unused-ignore", # Necessary for pyright
 ]
 # Keep in sync with pyright
