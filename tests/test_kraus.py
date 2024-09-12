@@ -20,11 +20,10 @@ if TYPE_CHECKING:
 
 
 class TestChannel:
-    """Tests for Channel class"""
+    """Tests for Channel class."""
 
     def test_init_with_data_success(self, fx_rng: Generator) -> None:
-        "test for successful intialization"
-
+        """Test for successful intialization."""
         prob = fx_rng.uniform()
         mychannel = KrausChannel(
             [
@@ -39,8 +38,7 @@ class TestChannel:
         assert mychannel.is_normalized
 
     def test_init_with_data_fail(self, fx_rng: Generator) -> None:
-        "test for unsuccessful intialization"
-
+        """Test for unsuccessful intialization."""
         prob = fx_rng.uniform()
 
         # empty data
@@ -126,7 +124,7 @@ class TestChannel:
         # incorrect rank (number of kraus_operators)
         # use a random channel to do that.
         with pytest.raises(ValueError):
-            randobj.rand_channel_kraus(dim=2**2, rank=20)
+            randobj.rand_channel_kraus(dim=2**2, rank=20, rng=fx_rng)
 
     def test_dephasing_channel(self, fx_rng: Generator) -> None:
         prob = fx_rng.uniform()

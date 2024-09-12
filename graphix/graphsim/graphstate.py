@@ -1,4 +1,4 @@
-"""Graph simulator
+"""Graph simulator.
 
 Graph state simulator, according to
 M. Elliot, B. Eastin & C. Caves,
@@ -18,7 +18,8 @@ from .rxgraphstate import RXGraphState
 class GraphState:
     """Factory class for graph state simulator."""
 
-    def __new__(self, nodes=None, edges=None, vops=None, use_rustworkx: bool = False) -> BaseGraphState:
+    def __new__(cls, nodes=None, edges=None, vops=None, use_rustworkx: bool = False) -> BaseGraphState:
+        """Build a graph state simulator."""
         if use_rustworkx:
             if RUSTWORKX_INSTALLED:
                 return RXGraphState(nodes=nodes, edges=edges, vops=vops)

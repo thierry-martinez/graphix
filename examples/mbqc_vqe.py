@@ -25,14 +25,14 @@ from scipy.optimize import minimize
 from graphix import Circuit
 from graphix.simulator import PatternSimulator
 
+Z = np.array([[1, 0], [0, -1]])
+X = np.array([[0, 1], [1, 0]])
+
 
 # %%
 # Define the Hamiltonian for the VQE problem (Example: H = Z0Z1 + X0 + X1)
 def create_hamiltonian():
-    Z = np.array([[1, 0], [0, -1]])
-    X = np.array([[0, 1], [1, 0]])
-    H = np.kron(Z, Z) + np.kron(X, np.eye(2)) + np.kron(np.eye(2), X)
-    return H
+    return np.kron(Z, Z) + np.kron(X, np.eye(2)) + np.kron(np.eye(2), X)
 
 
 # %%
@@ -70,7 +70,8 @@ class MBQCVQE:
         pattern.perform_pauli_measurements()  # Perform Pauli measurements
         simulator = PatternSimulator(pattern, backend=backend)
         if backend == "tensornetwork":
-            tn = simulator.run()  # Simulate the MBQC circuit using tensor network
+            simulator.run()  # Simulate the MBQC circuit using tensor network
+            tn = simulator.backend.state
             tn.default_output_nodes = pattern.output_nodes  # Set the default_output_nodes attribute
             if tn.default_output_nodes is None:
                 raise ValueError("Output nodes are not set for tensor network simulation.")
@@ -107,7 +108,8 @@ def cost_function(params):
 
 # %%
 # Random initial parameters
-initial_params = np.random.rand(n_qubits * 3)
+rng = np.random.default_rng()
+initial_params = rng.random(n_qubits * 3)
 
 # %%
 # Perform the optimization using COBYLA

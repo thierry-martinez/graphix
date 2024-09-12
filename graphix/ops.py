@@ -1,6 +1,4 @@
-"""
-quantum states and operators
-"""
+"""Quantum states and operators."""
 
 from __future__ import annotations
 
@@ -12,7 +10,7 @@ import numpy as np
 
 
 class Ops:
-    """Basic single- and two-qubits operators"""
+    """Basic single- and two-qubits operators."""
 
     x = np.array([[0, 1], [1, 0]])
     y = np.array([[0, -1j], [1j, 0]])
@@ -37,8 +35,8 @@ class Ops:
     Pauli_ops: ClassVar = [np.eye(2), x, y, z]
 
     @staticmethod
-    def Rx(theta):
-        """x rotation
+    def rx(theta):
+        """X rotation.
 
         Parameters
         ----------
@@ -46,15 +44,14 @@ class Ops:
             rotation angle in radian
 
         Returns
-        ----------
+        -------
         operator : 2*2 np.array
         """
-
         return np.array([[np.cos(theta / 2), -1j * np.sin(theta / 2)], [-1j * np.sin(theta / 2), np.cos(theta / 2)]])
 
     @staticmethod
-    def Ry(theta):
-        """y rotation
+    def ry(theta):
+        """Y rotation.
 
         Parameters
         ----------
@@ -62,14 +59,14 @@ class Ops:
             rotation angle in radian
 
         Returns
-        ----------
+        -------
         operator : 2*2 np.array
         """
         return np.array([[np.cos(theta / 2), -np.sin(theta / 2)], [np.sin(theta / 2), np.cos(theta / 2)]])
 
     @staticmethod
-    def Rz(theta):
-        """z rotation
+    def rz(theta):
+        """Z rotation.
 
         Parameters
         ----------
@@ -77,18 +74,19 @@ class Ops:
             rotation angle in radian
 
         Returns
-        ----------
+        -------
         operator : 2*2 np.array
         """
         return np.array([[np.exp(-1j * theta / 2), 0], [0, np.exp(1j * theta / 2)]])
 
     @staticmethod
-    def Rzz(theta):
+    def rzz(theta):
         """zz-rotation.
+
         Equivalent to the sequence
-        CNOT(control, target),
-        Rz(target, angle),
-        CNOT(control, target)
+        cnot(control, target),
+        rz(target, angle),
+        cnot(control, target)
 
         Parameters
         ----------
@@ -96,27 +94,26 @@ class Ops:
             rotation angle in radian
 
         Returns
-        ----------
+        -------
         operator : 4*4 np.array
         """
-        return Ops.cnot @ np.kron(np.eye(2), Ops.Rz(theta)) @ Ops.cnot
+        return Ops.cnot @ np.kron(np.eye(2), Ops.rz(theta)) @ Ops.cnot
 
     @staticmethod
-    def build_tensor_Pauli_ops(n_qubits: int):
-        """Method to build all the 4^n tensor Pauli operators {I, X, Y, Z}^{\\otimes n}
+    def build_tensor_pauli_ops(n_qubits: int):
+        r"""Build all the 4^n tensor Pauli operators {I, X, Y, Z}^{\otimes n}.
 
         :param n_qubits: number of copies (qubits) to consider
         :type n_qubits: int
         :return: the array of the 4^n operators of shape (2^n, 2^n)
         :rtype: np.ndarray
         """
-
         if isinstance(n_qubits, int):
             if not 1 <= n_qubits:
                 raise ValueError(f"The number of qubits must be an integer <= 1 and not {n_qubits}.")
         else:
             raise TypeError(f"The number of qubits must be an integer and not {n_qubits}.")
 
-        tensor_Pauli_ops = [reduce(lambda x, y: np.kron(x, y), i) for i in product(Ops.Pauli_ops, repeat=n_qubits)]
+        tensor_pauli_ops = [reduce(lambda x, y: np.kron(x, y), i) for i in product(Ops.Pauli_ops, repeat=n_qubits)]
 
-        return np.array(tensor_Pauli_ops)
+        return np.array(tensor_pauli_ops)
