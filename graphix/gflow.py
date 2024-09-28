@@ -698,6 +698,7 @@ def flow_from_pattern(pattern: Pattern) -> tuple[dict[int, set[int]], dict[int, 
         return None, None
 
 
+# TODO: Should standardize first!
 def gflow_from_pattern(pattern: Pattern) -> tuple[dict[int, set[int]], dict[int, int]]:
     """Check if the pattern has a valid gflow. If so, return the gflow and layers.
 

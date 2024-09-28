@@ -97,7 +97,7 @@ class TestPattern:
         depth = 3
         pairs = [(i, np.mod(i + 1, nqubits)) for i in range(nqubits)]
         circuit = rand_gate(nqubits, depth, pairs, rng)
-        pattern = circuit.transpile().pattern
+        pattern = circuit.transpile(opt=False).pattern
         pattern.standardize(method="global")
         pattern.shift_signals(method="global")
         pattern.perform_pauli_measurements(use_rustworkx=use_rustworkx)

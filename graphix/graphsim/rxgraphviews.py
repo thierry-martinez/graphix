@@ -52,7 +52,7 @@ class NodeList:
     # TODO: This is not an evaluable __repr__. Define __str__ instead?
     def __repr__(self) -> str:
         """Return a string representation for the node list."""
-        return "NodeList" + str(list(self.nodes))
+        return "NodeList" + str(self.num_to_idx)
 
     def get_node_index(self, nnum: int) -> int:
         """Return the index of the node `nnum`."""

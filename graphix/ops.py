@@ -101,3 +101,17 @@ class Ops(WellKnownMatrix):
 
         # TODO: Refactor this
         return np.array([reduce(np.kron, i) for i in product((Ops.I, Ops.X, Ops.Y, Ops.Z), repeat=n_qubits)])
+
+    @staticmethod
+    def j(alpha):
+        """J operator.
+
+        Parameters
+        ----------
+        alpha : float
+
+        Returns
+        -------
+        operator : 2*2 np.array
+        """
+        return 1 / np.sqrt(2) * np.array([[1, np.exp(1j * alpha)], [1, -np.exp(1j * alpha)]])

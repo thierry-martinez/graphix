@@ -18,6 +18,8 @@ from graphix.sim.statevec import Statevec
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from graphix.clifford import Clifford
+
 RUSTWORKX_INSTALLED = False
 try:
     import rustworkx as rx
@@ -206,7 +208,7 @@ class BaseGraphState(ABC):
         """
         ...
 
-    def apply_vops(self, vops: dict[int, int]) -> None:
+    def apply_vops(self, vops: dict[int, Clifford]) -> None:
         """Apply local Clifford operators to the graph state from a dictionary.
 
         Parameters
@@ -220,8 +222,8 @@ class BaseGraphState(ABC):
         None
         """
         for node, vop in vops.items():
-            for lc in reversed(Clifford(vop).hsz):
-                if lc == Clifford.Z:
+            for lc in reversed(vop.hsz):
+                if lc == 3:
                     self.z(node)
                 elif lc == Clifford.H:
                     self.h(node)

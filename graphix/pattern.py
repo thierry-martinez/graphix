@@ -5,11 +5,12 @@ ref: V. Danos, E. Kashefi and P. Panangaden. J. ACM 54.2 8 (2007)
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import warnings
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Iterator
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import typing_extensions
@@ -25,6 +26,8 @@ from graphix.simulator import PatternSimulator
 from graphix.states import BasicStates
 from graphix.visualization import GraphVisualizer
 
+if TYPE_CHECKING:
+    from typing import Iterator
 
 class NodeAlreadyPreparedError(Exception):
     """Exception raised if a node is already prepared."""
@@ -1161,7 +1164,7 @@ class Pattern:
         isolated_nodes = node_set - connected_node_set
         return isolated_nodes
 
-    def get_vops(self, conj=False, include_identity=False):
+    def get_vops(self, conj=False, include_identity=False) -> dict[int, Clifford]:
         """Get local-Clifford decorations from measurement or Clifford commands.
 
         Parameters
@@ -1440,6 +1443,34 @@ class Pattern:
         if not ignore_pauli_with_deps:
             self.move_pauli_measurements_to_the_front()
         measure_pauli(self, leave_input, copy=False, use_rustworkx=use_rustworkx)
+
+        def simplify_domain(domain):
+            inter = domain & self.results.keys()
+            if not inter:
+                return None, 0
+            return domain - inter, sum(self.results[node] for node in inter) % 2
+
+        for index, cmd in enumerate(self):
+            if cmd.kind == CommandKind.M:
+                new_s_domain, s_signal = simplify_domain(cmd.s_domain)
+                new_t_domain, t_signal = simplify_domain(cmd.t_domain)
+                if new_s_domain is not None or new_t_domain is not None or s_signal or t_signal:
+                    new_cmd = copy.copy(cmd)
+                    if new_s_domain is not None:
+                        new_cmd.s_domain = new_s_domain
+                    if new_t_domain is not None:
+                        new_cmd.t_domain = new_t_domain
+                    if s_signal or t_signal:
+                        update = MeasureUpdate.compute(new_cmd.plane, s_signal, t_signal, clifford.I)
+                        new_cmd.plane = update.new_plane
+                        new_cmd.angle = new_cmd.angle * update.coeff + update.add_term
+                    self.__seq[index] = new_cmd
+            elif cmd.kind in {CommandKind.X, CommandKind.Z}:
+                new_domain, signal = simplify_domain(cmd.domain)
+                if new_domain is not None and not signal:
+                    new_cmd = copy.copy(cmd)
+                    new_cmd.domain = new_domain
+                    self.__seq[index] = new_cmd
 
     def draw_graph(
         self,
@@ -2169,6 +2200,7 @@ def measure_pauli(pattern, leave_input, copy=False, use_rustworkx=False):
     pat.reorder_output_nodes(output_nodes)
     assert pat.n_node == len(graph_state.nodes)
     pat.results = results
+    # pat.results.update(results)
     pat._pauli_preprocessed = True
     return pat
 

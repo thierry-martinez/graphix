@@ -6,9 +6,9 @@ accepts desired gate operations and transpile into MBQC measurement patterns.
 
 from __future__ import annotations
 
-import dataclasses
 import warnings
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-@dataclasses.dataclass
+@dataclass
 class TranspileResult:
     """
     The result of a transpilation.
@@ -39,7 +39,7 @@ class TranspileResult:
     classical_outputs: tuple[int, ...]
 
 
-@dataclasses.dataclass
+@dataclass
 class SimulateResult:
     """
     The result of a simulation.
@@ -271,7 +271,35 @@ class Circuit:
         self.instruction.append(instruction.M(target=qubit, plane=plane, angle=angle))
         self.active_qubits.remove(qubit)
 
-    def transpile(self, opt: bool = False) -> TranspileResult:
+    def j(self, qubit: int, angle: float):
+        """Apply a J gate.
+
+        Parameters
+        ----------
+        qubit : int
+            target qubit
+        angle : float
+            rotation angle in radian
+        """
+        assert qubit in self.active_qubits
+        self.instruction.append(instruction.J(target=qubit, angle=angle))
+
+    def cz(self, qubit1: int, qubit2: int):
+        """Apply a CZ gate.
+
+        Parameters
+        ----------
+        qubit1 : int
+            first qubit to be swapped
+        qubit2 : int
+            second qubit to be swapped
+        """
+        assert qubit1 in self.active_qubits
+        assert qubit2 in self.active_qubits
+        assert qubit1 != qubit2
+        self.instruction.append(instruction.CZ(targets=(qubit1, qubit2)))
+
+    def transpile_old(self, opt: bool = False) -> TranspileResult:
         """Transpile the circuit to a pattern.
 
         Parameters
@@ -1634,10 +1662,62 @@ class Circuit:
             elif kind == instruction.InstructionKind.M:
                 result = base_backend.perform_measure(instr.target, instr.plane, instr.angle * np.pi, state, np.random)
                 classical_measures.append(result)
+            elif kind == instruction.InstructionKind.J:
+                state.evolve_single(Ops.j(instr.angle), instr.target)
+            elif kind == instruction.InstructionKind.CZ:
+                state.entangle(instr.targets)
             else:
                 raise ValueError(f"Unknown instruction: {instr}")
 
         return SimulateResult(state, classical_measures)
+
+    def transpile(self, opt: bool = True) -> TranspileResult:
+        """Transpile the circuit to a pattern.
+
+        Each gate is decomposed into J and CZ gates via the method `transpile_jcz` defined in `Instruction` classes.
+        J and CZ gates are then translated into patterns:
+        - $J(α) := X_o^{s_i} M_i^{-α} E_{io}$, where $i$ is the input node and $o$ the output node
+        - $CZ := E_{12}$.
+        These patterns are introduced in
+        Vincent Danos, Elham Kashefi, Prakash Panangaden, The Measurement Calculus, 2007.
+
+        Parameters
+        ----------
+        opt : bool
+            This optional parameter is deprecated and ignored.
+
+        Returns
+        -------
+        result : :class:`TranspileResult` object
+        """
+        indices = list(range(self.width))
+        n_nodes = self.width
+        pattern = Pattern(input_nodes=indices)
+        for instr in self.instruction:
+            for instr_jcz in instr.transpile_jcz():
+                kind = instr_jcz.kind
+                if kind == instruction.InstructionKind.J:
+                    target = indices[instr_jcz.target]
+                    ancilla = n_nodes
+                    n_nodes += 1
+                    pattern.extend(
+                        [
+                            command.N(node=ancilla),
+                            command.E(nodes=(target, ancilla)),
+                            command.M(node=target, angle=-instr_jcz.angle / np.pi),
+                            command.X(node=ancilla, domain={target}),
+                        ]
+                    )
+                    indices[instr_jcz.target] = ancilla
+                elif kind == instruction.InstructionKind.CZ:
+                    t0, t1 = instr_jcz.targets
+                    pattern.extend([command.E(nodes=(indices[t0], indices[t1]))])
+                else:
+                    raise ValueError(f"Unknown instruction: {instr_jcz}")
+        pattern.reorder_output_nodes(indices)
+        if opt:
+            pattern.perform_pauli_measurements(leave_input=True)
+        return TranspileResult(pattern=pattern, classical_outputs=tuple())
 
 
 def _extend_domain(measure: M, domain: set[int]) -> None:

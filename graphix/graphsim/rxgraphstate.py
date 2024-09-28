@@ -10,6 +10,8 @@ from graphix.graphsim.rxgraphviews import EdgeList, NodeList
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from graphix.clifford import Clifford
+
 if RUSTWORKX_INSTALLED:
     import rustworkx as rx
 else:
@@ -26,7 +28,7 @@ class RXGraphState(BaseGraphState):
         self,
         nodes: list[int] | None = None,
         edges: list[tuple[int, int]] | None = None,
-        vops: dict[int, int] | None = None,
+        vops: dict[int, Clifford] | None = None,
     ):
         """Initialize graph state simulator.
 
