@@ -10,6 +10,7 @@ import numpy.typing as npt
 import pytest
 
 import graphix.random_objects as randobj
+from graphix import command
 from graphix.channels import KrausChannel, dephasing_channel, depolarising_channel
 from graphix.ops import Ops
 from graphix.pauli import Plane
@@ -912,51 +913,36 @@ class TestDensityMatrixBackend:
 
     @pytest.mark.parametrize("pr_calc", [False, True])
     def test_measure(self, pr_calc) -> None:
-        circ = Circuit(1)
-        circ.rx(0, np.pi / 2)
-        pattern = circ.transpile().pattern
-
         measure_method = DefaultMeasureMethod()
         backend = DensityMatrixBackend(pr_calc=pr_calc)
-        backend.add_nodes(pattern.input_nodes)
-        backend.add_nodes([1, 2])
+        backend.add_nodes([0, 1, 2])
         backend.entangle_nodes((0, 1))
         backend.entangle_nodes((1, 2))
-        measure_method.measure(backend, pattern[-4])
+        measure_method.measure(backend, command.M(node=0))
 
         expected_matrix_1 = np.kron(np.array([[1, 0], [0, 0]]), np.ones((2, 2)) / 2)
         expected_matrix_2 = np.kron(np.array([[0, 0], [0, 1]]), np.array([[0.5, -0.5], [-0.5, 0.5]]))
         assert np.allclose(backend.state.rho, expected_matrix_1) or np.allclose(backend.state.rho, expected_matrix_2)
 
     def test_correct_byproduct(self) -> None:
-        circ = Circuit(1)
-        circ.rx(0, np.pi / 2)
-        pattern = circ.transpile().pattern
         measure_method = DefaultMeasureMethod()
+
+        def compute(backend) -> None:
+            backend.add_nodes([0, 1, 2])
+            backend.entangle_nodes((0, 1))
+            backend.entangle_nodes((1, 2))
+            measure_method.measure(backend, command.M(node=0))
+            measure_method.measure(backend, command.M(node=1, angle=-0.5))
+            backend.correct_byproduct(command.X(node=2, domain={1}), measure_method)
+            backend.correct_byproduct(command.Z(node=2, domain={0}), measure_method)
+            backend.finalize([2])
+
         backend = DensityMatrixBackend()
-        backend.add_nodes(pattern.input_nodes)
-        # node 0 initialized in Backend
-        backend.add_nodes([1, 2])
-        backend.entangle_nodes((0, 1))
-        backend.entangle_nodes((1, 2))
-        measure_method.measure(backend, pattern[-4])
-        measure_method.measure(backend, pattern[-3])
-        backend.correct_byproduct(pattern[-2], measure_method)
-        backend.correct_byproduct(pattern[-1], measure_method)
-        backend.finalize(pattern.output_nodes)
+        compute(backend)
         rho = backend.state.rho
 
         backend = StatevectorBackend()
-        backend.add_nodes(pattern.input_nodes)
-        # node 0 initialized in Backend
-        backend.add_nodes([1, 2])
-        backend.entangle_nodes((0, 1))
-        backend.entangle_nodes((1, 2))
-        measure_method.measure(backend, pattern[-4])
-        measure_method.measure(backend, pattern[-3])
-        backend.correct_byproduct(pattern[-2], measure_method)
-        backend.correct_byproduct(pattern[-1], measure_method)
-        backend.finalize(pattern.output_nodes)
+        compute(backend)
         psi = backend.state.psi
 
         assert np.allclose(rho, np.outer(psi, psi.conj()))

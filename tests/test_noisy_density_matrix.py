@@ -101,7 +101,7 @@ class TestNoisyDensityMatrixBackend:
     def rzpat(alpha: float) -> Pattern:
         circ = Circuit(1)
         circ.rz(0, alpha)
-        return circ.transpile().pattern
+        return circ.transpile(opt=False).pattern
 
     # test noiseless noisy vs noiseless
     @pytest.mark.filterwarnings("ignore:Simulating using densitymatrix backend with no noise.")
@@ -251,6 +251,8 @@ class TestNoisyDensityMatrixBackend:
     def test_noisy_preparation_rz(self, fx_rng: Generator) -> None:
         alpha = fx_rng.random()
         rzpattern = self.rzpat(alpha)
+        circ = Circuit(1)
+        circ.rz(0, alpha)
         prepare_error_pr = fx_rng.random()
         print(f"prepare_error_pr = {prepare_error_pr}")
         res = rzpattern.simulate_pattern(

@@ -17,7 +17,7 @@ import typing_extensions
 
 from graphix import command
 from graphix.clifford import Clifford, Domains
-from graphix.command import Command, CommandKind
+from graphix.command import Command, CommandKind, MeasureUpdate
 from graphix.device_interface import PatternRunner
 from graphix.gflow import find_flow, find_gflow, get_layers
 from graphix.graphsim.graphstate import GraphState
@@ -28,6 +28,7 @@ from graphix.visualization import GraphVisualizer
 
 if TYPE_CHECKING:
     from typing import Iterator
+
 
 class NodeAlreadyPreparedError(Exception):
     """Exception raised if a node is already prepared."""
@@ -274,6 +275,7 @@ class Pattern:
                 "x_signal": set(),
                 "x_signals": [],
                 "z_signal": set(),
+                "vop": Clifford.I,
                 "is_input": False,
                 "is_output": False,
             }
@@ -302,7 +304,7 @@ class Pattern:
                 node_prop[cmd.node]["z_signal"] ^= cmd.domain
                 node_prop[cmd.node]["seq"].append(-3)
             elif kind == CommandKind.C:
-                node_prop[cmd.node]["vop"] = cmd.clifford.index
+                node_prop[cmd.node]["vop"] = cmd.clifford
                 node_prop[cmd.node]["seq"].append(-4)
             elif kind == CommandKind.S:
                 raise NotImplementedError
@@ -1461,7 +1463,7 @@ class Pattern:
                     if new_t_domain is not None:
                         new_cmd.t_domain = new_t_domain
                     if s_signal or t_signal:
-                        update = MeasureUpdate.compute(new_cmd.plane, s_signal, t_signal, clifford.I)
+                        update = MeasureUpdate.compute(new_cmd.plane, s_signal, t_signal, Clifford.I)
                         new_cmd.plane = update.new_plane
                         new_cmd.angle = new_cmd.angle * update.coeff + update.add_term
                     self.__seq[index] = new_cmd
@@ -1682,7 +1684,7 @@ class CommandNode:
         whether the node is an output or not
     """
 
-    def __init__(self, node_index, seq, m_prop, z_signal, is_input, is_output, x_signal=None, x_signals=None):
+    def __init__(self, node_index, seq, m_prop, z_signal, vop, is_input, is_output, x_signal=None, x_signals=None):
         """
         Construct a command node.
 
@@ -1724,6 +1726,7 @@ class CommandNode:
         self.x_signal = x_signal
         self.x_signals = x_signals
         self.z_signal = z_signal  # appeared at most e + 1
+        self.vop = vop
         self.is_input = is_input
         self.is_output = is_output
 
