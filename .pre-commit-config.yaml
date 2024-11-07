@@ -1,4 +1,20 @@
-files-typed: &files-typed "^(\
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: "v1.13.0"
+    hooks:
+      - id: mypy
+        files:  &files-typed "^(\
   graphix/channels|\
   graphix/clifford|\
   graphix/command|\
@@ -26,9 +42,7 @@ files-typed: &files-typed "^(\
   tests/test_rng\
   .*/__init__|\
   ).py$"
-
-deps-typecheck:
-  &deps-typecheck [
+        additional_dependencies: &deps-typecheck [
     "nox",
     "numpy",
     "psutil",
@@ -39,25 +53,6 @@ deps-typecheck:
     "types-networkx",
     "types-psutil",
   ]
-
-repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: check-added-large-files
-      - id: check-case-conflict
-      - id: check-yaml
-      - id: end-of-file-fixer
-      - id: fix-byte-order-marker
-      - id: mixed-line-ending
-      - id: trailing-whitespace
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: "v1.13.0"
-    hooks:
-      - id: mypy
-        files: *files-typed
-        additional_dependencies: *deps-typecheck
 
   - repo: https://github.com/RobertCraigie/pyright-python
     rev: v1.1.387
