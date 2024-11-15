@@ -303,7 +303,8 @@ class RustDensityMatrix:
         else:
             state = dm_simu_rs.Zero
         self.rho = dm_simu_rs.new_dm(nqubit, state)
-    
+        self.Nqubit = nqubit
+
     def __repr__(self):
         return f"DensityMatrix, data={dm_simu_rs.get_dm(self.rho)}, nqubits={dm_simu_rs.get_nqubits(self.rho)}"
 
@@ -352,6 +353,26 @@ class RustDensityMatrix:
 
         if not np.allclose(self.rho.trace(), 1.0):
             raise ValueError("The output density matrix is not normalized, check the channel definition.")
+
+
+    def tensor(self, other):
+        r"""Tensor product state with other density matrix.
+        Results in self :math:`\otimes` other.
+
+        Parameters
+        ----------
+            other : :class: `DensityMatrix` object
+                DensityMatrix object to be tensored with self.
+        """
+        if not isinstance(other, RustDensityMatrix):
+            other = RustDensityMatrix(other)
+        print(f"RUST DM other = {other}")
+        dm_simu_rs.tensor_dm(self.rho, other.rho)
+        # self.rho = np.kron(self.rho.data, other.rho.data)
+        # self.rho.nqubits += other.rho.nqubits
+
+    def entangle(self, edge):
+        dm_simu_rs.entangle(self.rho, edge)
 
 class DensityMatrixBackend(Backend):
     """MBQC simulator with density matrix method."""

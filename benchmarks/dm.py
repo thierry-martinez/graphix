@@ -36,7 +36,7 @@ def simple_random_circuit(nqubit, depth):
 
 def random_pattern(nqubits, depth):
     circuit = simple_random_circuit(nqubits, depth)
-    pattern = circuit.transpile()
+    pattern = circuit.transpile().pattern
     pattern.standardize()
     pattern.minimize_space()
     return pattern
@@ -48,8 +48,8 @@ class TimeSuite:
 
     def test_consistency(self):
         for pattern in self.patterns:
-            numpy_result = pattern.simulate_pattern(impl=DensityMatrix)
-            rust_result = pattern.simulate_pattern(impl=RustDensityMatrix)
+            numpy_result = pattern.simulate_pattern(backend="densitymatrix", impl=DensityMatrix)
+            rust_result = pattern.simulate_pattern(backend="densitymatrix", impl=RustDensityMatrix)
             np.testing.assert_almost_equal(numpy_result.flatten(), rust_result.flatten(), decimal=2)
 
     def time_impl(self, impl):
@@ -58,7 +58,7 @@ class TimeSuite:
 
 
 ts = TimeSuite()
-ts.setup(20, 16, 2)
+ts.setup(20, 10, 2)
 ts.test_consistency()
 
 
