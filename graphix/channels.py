@@ -78,9 +78,12 @@ class KrausChannel:
 
     @staticmethod
     def _nqubit(kraus_data: Iterable[KrausData]) -> int:
-        # MEMO: kraus_data is not empty.
         it = iter(kraus_data)
-        nqubit = next(it).nqubit
+        try:
+            nqubit = next(it).nqubit
+        except StopIteration:
+            # kraus_data is empty
+            return 0
 
         if any(data.nqubit != nqubit for data in it):
             raise ValueError("All operators must have the same shape.")
@@ -102,23 +105,21 @@ class KrausChannel:
         """
         kraus_data = list(copy.deepcopy(kdata) for kdata in kraus_data)
 
-        if not kraus_data:
-            raise ValueError("Cannot instantiate the channel with empty data.")
-
         self.__nqubit = self._nqubit(kraus_data)
         self.__data = kraus_data
 
         if len(self.__data) > 4**self.__nqubit:
             raise ValueError("len(kraus_data) cannot exceed 4**nqubit.")
 
-        # Check that the channel is properly normalized, i.e., \sum_K_i^\dagger K_i = Identity.
-        data = next(iter(self.__data))
-        work = np.zeros_like(data.operator, dtype=np.complex128)
-        for data in self.__data:
-            m = data.coef * data.operator
-            work += m.conj().T @ m
-        if not np.allclose(work, np.eye(2**self.__nqubit)):
-            raise ValueError("The specified channel is not normalized.")
+        if self.__nqubit > 0:
+            # Check that the channel is properly normalized, i.e., \sum_K_i^\dagger K_i = Identity.
+            data = next(iter(self.__data))
+            work = np.zeros_like(data.operator, dtype=np.complex128)
+            for data in self.__data:
+                m = data.coef * data.operator
+                work += m.conj().T @ m
+            if not np.allclose(work, np.eye(2**self.__nqubit)):
+                raise ValueError("The specified channel is not normalized.")
 
     @typing.overload
     def __getitem__(self, index: SupportsIndex, /) -> KrausData: ...

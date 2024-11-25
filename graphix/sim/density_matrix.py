@@ -308,10 +308,15 @@ class DensityMatrix(State):
             This shouldn't happen since :class:`graphix.channel.KrausChannel` objects are normalized by construction.
         ....
         """
-        result_array = np.zeros((2**self.nqubit, 2**self.nqubit), dtype=np.complex128)
-
         if not isinstance(channel, KrausChannel):
             raise TypeError("Can't apply a channel that is not a Channel object.")
+
+        if channel.nqubit == 0:
+            if len(qargs) != 0:
+                raise ValueError("Inconsistently applying an empty Kraus channel to some qubits.")
+            return
+
+        result_array = np.zeros((2**self.nqubit, 2**self.nqubit), dtype=np.complex128)
 
         for k_op in channel:
             dm = copy.copy(self)

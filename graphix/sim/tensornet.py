@@ -19,6 +19,7 @@ from graphix.states import BasicStates, PlanarState
 if TYPE_CHECKING:
     from numpy.random import Generator
 
+    from graphix.channels import KrausChannel
     from graphix.clifford import Clifford
     from graphix.measurements import Measurement
     from graphix.simulator import MeasureMethod
@@ -205,6 +206,10 @@ class TensorNetworkBackend(Backend):
     def finalize(self, output_nodes) -> None:
         """Do nothing."""
         pass
+
+    def apply_channel(self, channel: KrausChannel, qargs) -> None:
+        """Not implemented: cannot apply a channel to a tensor network backend."""
+        raise NotImplementedError("Cannot apply a channel to a tensor network backend.")
 
 
 class MBQCTensorNet(State, TensorNetwork):
