@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
     from numpy.random import Generator
 
+    from graphix.channels import KrausChannel
+
 
 class StatevectorBackend(Backend):
     """MBQC simulator with statevector method."""
@@ -357,6 +359,10 @@ class Statevec(State):
         st1 = copy.copy(st2)
         st1.evolve(op, qargs)
         return np.dot(st2.psi.flatten().conjugate(), st1.psi.flatten())
+
+    def apply_channel(self, channel: KrausChannel, qargs) -> None:
+        """Not implemented: cannot apply a channel to a state vector backend."""
+        raise NotImplementedError("Cannot apply a channel to a state vector backend.")
 
 
 def _get_statevec_norm(psi):

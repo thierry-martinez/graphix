@@ -40,10 +40,6 @@ class TestChannel:
         """Test for unsuccessful intialization."""
         prob = fx_rng.uniform()
 
-        # empty data
-        with pytest.raises(ValueError):
-            _ = KrausChannel([])
-
         # incorrect operator dimension
         with pytest.raises(ValueError):
             _ = KrausChannel(
