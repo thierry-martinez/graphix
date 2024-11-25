@@ -66,6 +66,6 @@ repos:
     hooks:
       - id: ruff
         name: ruff-isort
-        args: [--fix, --select, I]
+        args: [--select, I]
       - id: ruff
       - id: ruff-format
