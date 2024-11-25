@@ -192,10 +192,12 @@ class ComplexUnit(Enum):
 class IXYZ(Enum):
     """I, X, Y or Z."""
 
-    I = enum.auto()
-    X = enum.auto()
-    Y = enum.auto()
-    Z = enum.auto()
+    # 0, 1, 2, 3 follows the Stim convention and is therefore useful for
+    # coercing such an index into a `IXYZ` value with `IXYZ(index)`.
+    I = 0
+    X = 1
+    Y = 2
+    Z = 3
 
     @property
     def matrix(self) -> npt.NDArray[np.complex128]:
