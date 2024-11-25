@@ -23,6 +23,7 @@ from graphix.sim.tensornet import TensorNetworkBackend
 from graphix.states import BasicStates
 
 if TYPE_CHECKING:
+    from graphix.noise_models import Noise
     from graphix.pattern import Pattern
 
 
@@ -163,8 +164,7 @@ class PatternSimulator:
         if input_state is not None:
             self.backend.add_nodes(self.pattern.input_nodes, input_state)
             if self.noise_model is not None:
-                for channel, qubits in self.noise_model.input_nodes(self.pattern.input_nodes):
-                    self.backend.apply_channel(channel, qubits)
+                apply_noise(self.backend, self.noise_model.input_nodes(self.pattern.input_nodes))
         for cmd in self.pattern:
             if cmd.kind == CommandKind.N:
                 self.backend.add_nodes(nodes=[cmd.node], data=cmd.state)
@@ -172,8 +172,7 @@ class PatternSimulator:
                 self.backend.entangle_nodes(edge=cmd.nodes)
             elif cmd.kind == CommandKind.M:
                 if self.noise_model is not None:
-                    (channel, qubits) = self.noise_model.command(cmd)
-                    self.backend.apply_channel(channel, qubits)
+                    apply_noise(self.backend, self.noise_model.command(cmd))
                 result = self.__measure_method.measure(self.backend, cmd)
                 if self.noise_model is not None:
                     result = self.noise_model.confuse_result(result)
@@ -192,6 +191,11 @@ class PatternSimulator:
             else:
                 raise ValueError("invalid commands")
             if cmd.kind != CommandKind.M and self.noise_model is not None:
-                (channel, qubits) = self.noise_model.command(cmd)
-                self.backend.apply_channel(channel, qubits)
+                apply_noise(self.backend, self.noise_model.command(cmd))
         self.backend.finalize(output_nodes=self.pattern.output_nodes)
+
+
+def apply_noise(backend: Backend, noise: Noise) -> None:
+    """Apply a noise to the state of a backend."""
+    for channel, qubits in noise:
+        backend.apply_channel(channel, qubits)

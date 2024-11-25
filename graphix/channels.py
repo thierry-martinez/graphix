@@ -220,6 +220,8 @@ def two_qubit_depolarising_channel(prob: float) -> KrausChannel:
     :class:`graphix.channels.KrausChannel` object
         containing the corresponding Kraus operators
     """
+    # TODO: consider to remove this or to implement it by using tensor
+    # on one-qubit `depolarising_channel`.
     return KrausChannel(
         [
             KrausData(np.sqrt(1 - prob), np.kron(Ops.I, Ops.I)),

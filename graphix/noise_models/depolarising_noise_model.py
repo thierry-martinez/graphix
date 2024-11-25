@@ -8,7 +8,7 @@ import typing_extensions
 
 from graphix.channels import KrausChannel, depolarising_channel, two_qubit_depolarising_channel
 from graphix.command import Command, CommandKind
-from graphix.noise_models.noise_model import NoiseModel
+from graphix.noise_models.noise_model import Noise, NoiseModel
 from graphix.rng import ensure_rng
 
 if TYPE_CHECKING:
@@ -42,25 +42,25 @@ class DepolarisingNoiseModel(NoiseModel):
         self.measure_channel_prob = measure_channel_prob
         self.rng = ensure_rng(rng)
 
-    def input_nodes(self, nodes: list[int]) -> list[tuple[KrausChannel, list[int]]]:
+    def input_nodes(self, nodes: list[int]) -> Noise:
         """Return the noise to apply to input nodes."""
         return [(depolarising_channel(self.prepare_error_prob), [node]) for node in nodes]
 
-    def command(self, cmd: Command) -> tuple[KrausChannel, list[int]]:
+    def command(self, cmd: Command) -> Noise:
         """Return the noise to apply to the command `cmd`."""
         kind = cmd.kind
         if kind == CommandKind.N:
-            return (depolarising_channel(self.prepare_error_prob), [cmd.node])
+            return [(depolarising_channel(self.prepare_error_prob), [cmd.node])]
         if kind == CommandKind.E:
-            return (two_qubit_depolarising_channel(self.entanglement_error_prob), cmd.nodes)
+            return [(two_qubit_depolarising_channel(self.entanglement_error_prob), cmd.nodes)]
         if kind == CommandKind.M:
-            return (depolarising_channel(self.measure_channel_prob), [cmd.node])
+            return [(depolarising_channel(self.measure_channel_prob), [cmd.node])]
         if kind == CommandKind.X:
-            return (depolarising_channel(self.x_error_prob), [cmd.node])
+            return [(depolarising_channel(self.x_error_prob), [cmd.node])]
         if kind == CommandKind.Z:
-            return (depolarising_channel(self.z_error_prob), [cmd.node])
+            return [(depolarising_channel(self.z_error_prob), [cmd.node])]
         if kind == CommandKind.C or kind == CommandKind.T:
-            return (KrausChannel([]), [])
+            return [(KrausChannel([]), [])]
         typing_extensions.assert_never(kind)
 
     def confuse_result(self, result: bool) -> bool:
