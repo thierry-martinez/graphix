@@ -24,15 +24,14 @@ Specifically, `matplotlib` is necessary to run codes in the `example` folder.
 pip install matplotlib
 ```
 
-Before comitting the code, make sure to format with `ruff`.
+For other depencencies for the docs build, see `docs/requirements.txt`.
+
+Before comitting the code, make sure to format it with `pre-commit`.
 To format a python file, just run in the top level of the repository:
 
 ```bash
-# Be sure to use the latest version of ruff
-pip install -U ruff
-# Sort imports and format
-ruff check --select I --fix .
-ruff format .
+pip install -U pre-commit
+pre-commit run -a
 ```
 
 and you are ready to commit the changes.

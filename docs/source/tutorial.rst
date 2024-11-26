@@ -28,7 +28,7 @@ For any gate network, we can use the :class:`~graphix.transpiler.Circuit` class 
     pattern = circuit.transpile().pattern
 
 the :class:`~graphix.pattern.Pattern` object contains the sequence of commands according to the measurement calculus framework [#Danos2007]_.
-Let us print the pattern (command sequence) that we generated, 
+Let us print the pattern (command sequence) that we generated,
 
 >>> pattern.print_pattern() # show the command sequence (pattern)
 N, node = 1
@@ -73,7 +73,7 @@ We can use the in-built visualization tool to view the pattern,
 
 
 Universal gate sets
-------------------
+-------------------
 
 As a more complex example than above, we show measurement patterns and graph states for CNOT and single-qubit general rotation which makes MBQC universal:
 
@@ -142,7 +142,7 @@ As an example, let us prepare a pattern to rotate two qubits in :math:`|+\rangle
     circuit.cnot(0, 1)
     pattern = circuit.transpile().pattern
 
-This produces a rather long and complicated command sequence. 
+This produces a rather long and complicated command sequence.
 
 >>> pattern.print_pattern() # show the command sequence (pattern)
 N, node = 2
@@ -321,7 +321,7 @@ With this, we only need the memory space for three qubits.
 
 This procedure is more effective when the resource state size is large compared to the logical input qubit count;
 for example, the three-qubit `quantum Fourier transform (QFT)
-<https://en.wikipedia.org/wiki/Quantum_Fourier_transform>`_ circuit requires 12 qubits in the resource state after :meth:`~graphix.pattern.Pattern.perform_pauli_measurements()` (see the code in :ref:`QFT example <gallery:qft>`); with the proper reordering of the commands, the max_space reduces to 4.
+<https://en.wikipedia.org/wiki/Quantum_Fourier_transform>`_ circuit requires 12 qubits in the resource state after :meth:`~graphix.pattern.Pattern.perform_pauli_measurements()` (see the code in :ref:`QFT example <sphx_glr_gallery_qft_with_tn.py>`); with the proper reordering of the commands, the max_space reduces to 4.
 In fact, for patterns transpiled from gate network, the minimum `space` we can realize is typically :math:`n_w+1` where :math:`n_w` is the width of the circuit.
 
 
@@ -514,5 +514,3 @@ References
 ----------
 
 .. [#Danos2007] `V. Danos, E Kashefi and P. Panangaden, "The Measurement Calculus", Journal of the ACM 54, 2 (2007) <https://doi.org/10.48550/arXiv.0704.1263>`_
-
-

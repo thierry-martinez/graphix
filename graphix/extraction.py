@@ -1,5 +1,8 @@
+"""Functions to extract fusion network from a given graph state."""
+
 from __future__ import annotations
 
+import operator
 from copy import deepcopy
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -15,16 +18,19 @@ if TYPE_CHECKING:
 
 
 class ResourceType(Enum):
+    """Resource type."""
+
     GHZ = "GHZ"
     LINEAR = "LINEAR"
     NONE = None
 
     def __str__(self):
+        """Return the name of the resource type."""
         return self.name
 
 
 class ResourceGraph:
-    """resource graph state object.
+    """Resource graph state object.
 
     Parameters
     ----------
@@ -39,12 +45,16 @@ class ResourceGraph:
         self.type = cltype
 
     def __str__(self) -> str:
+        """Return a description of the rsource graph."""
         return str(self.type) + str(self.graph.nodes)
 
+    # TODO: this is not an evaluable __repr__.
     def __repr__(self) -> str:
+        """Return a description of the rsource graph."""
         return str(self.type) + str(self.graph.nodes)
 
     def __eq__(self, other) -> bool:
+        """Return `True` if two resource graphs are equal, `False` otherwise."""
         if not isinstance(other, ResourceGraph):
             raise TypeError("cannot compare ResourceGraph with other object")
 
@@ -53,10 +63,11 @@ class ResourceGraph:
 
 def get_fusion_network_from_graph(
     graph: BaseGraphState,
-    max_ghz: int | float = np.inf,
-    max_lin: int | float = np.inf,
+    max_ghz: float = np.inf,
+    max_lin: float = np.inf,
 ) -> list[ResourceGraph]:
     """Extract GHZ and linear cluster graph state decomposition of desired resource state :class:`~graphix.graphsim.GraphState`.
+
     Extraction algorithm is based on [1].
 
     [1] Zilk et al., A compiler for universal photonic quantum computers, 2022 `arXiv:2210.09251 <https://arxiv.org/abs/2210.09251>`_
@@ -95,7 +106,7 @@ def get_fusion_network_from_graph(
 
     # Find GHZ graphs in the graph and remove their edges from the graph.
     # All nodes that have more than 2 edges become the roots of the GHZ clusters.
-    for v, _ in sorted(neighbors_list, key=lambda tup: tup[1], reverse=True):
+    for v, _ in sorted(neighbors_list, key=operator.itemgetter(1), reverse=True):
         if len(adjdict[v]) > 2:
             nodes = [v]
             while len(adjdict[v]) > 0 and len(nodes) < max_ghz:
@@ -158,8 +169,8 @@ def create_resource_graph(node_ids: list[int], root: int | None = None, use_rust
 
     Returns
     -------
-    :class:`Cluster` object
-        Cluster object.
+    :class:`ResourceGraph` object
+        `ResourceGraph` object.
     """
     cluster_type = None
     edges = []
@@ -177,6 +188,7 @@ def create_resource_graph(node_ids: list[int], root: int | None = None, use_rust
 
 def get_fusion_nodes(c1: ResourceGraph, c2: ResourceGraph) -> list[int]:
     """Get the nodes that are fused between two resource states. Currently, we consider only type-I fusion.
+
     See [2] for the definition of fusion operation.
 
     [2] Daniel E. Browne and Terry Rudolph. Resource-efficient linear optical quantum computation. Physical Review Letters, 95(1):010501, 2005.

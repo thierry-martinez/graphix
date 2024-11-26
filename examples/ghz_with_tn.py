@@ -14,10 +14,10 @@ Firstly, let us import relevant modules:
 """
 
 # %%
+from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
 
 from graphix import Circuit
 
@@ -46,7 +46,6 @@ g.add_nodes_from(nodes)
 g.add_edges_from(edges)
 print(f"Number of nodes: {len(nodes)}")
 print(f"Number of edges: {len(edges)}")
-np.random.seed(100)
 pos = nx.spring_layout(g)
 nx.draw(g, pos=pos, node_size=15)
 plt.show()
@@ -56,6 +55,6 @@ plt.show()
 
 tn = pattern.simulate_pattern(backend="tensornetwork")
 print(f"The amplitude of |00...0>: {tn.get_basis_amplitude(0)}")
-print(f"The amplitude of |11...1>: {tn.get_basis_amplitude(2**n-1)}")
+print(f"The amplitude of |11...1>: {tn.get_basis_amplitude(2**n - 1)}")
 
 # %%

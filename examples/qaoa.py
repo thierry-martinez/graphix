@@ -12,14 +12,18 @@ You can run this code on your browser with `mybinder.org <https://mybinder.org/>
 """
 
 # %%
+from __future__ import annotations
+
 import networkx as nx
 import numpy as np
 
 from graphix import Circuit
 
+rng = np.random.default_rng()
+
 n = 4
-xi = np.random.rand(6)
-theta = np.random.rand(4)
+xi = rng.random(6)
+theta = rng.random(4)
 g = nx.complete_graph(n)
 circuit = Circuit(n)
 for i, (u, v) in enumerate(g.edges):

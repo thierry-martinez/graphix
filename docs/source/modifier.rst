@@ -1,4 +1,4 @@
-Pattern Optimization
+Pattern Manipulation
 ====================
 
 :mod:`graphix.pattern` module
@@ -19,9 +19,9 @@ Pattern Optimization
     .. automethod:: replace
 
     .. automethod:: reorder_output_nodes
-    
+
     .. automethod:: reorder_input_nodes
-        
+
     .. automethod:: simulate_pattern
 
     .. automethod:: get_max_degree
@@ -80,4 +80,3 @@ Pattern Optimization
 
 
 .. autofunction:: measure_pauli
-
