@@ -13,6 +13,8 @@ from graphix.clifford import CLIFFORD_CONJ, CLIFFORD_MEASURE, CLIFFORD_TO_QASM3
 from graphix.device_interface import PatternRunner
 from graphix.gflow import find_flow, find_gflow, get_layers
 from graphix.graphsim.graphstate import GraphState
+from graphix.sim.density_matrix import RustDensityMatrix
+import dm_simu_rs
 from graphix.simulator import PatternSimulator
 from graphix.visualization import GraphVisualizer
 from graphix import command
@@ -1333,7 +1335,9 @@ class Pattern:
         """
         sim = PatternSimulator(self, backend=backend, **kwargs)
         state = sim.run()
-        return state
+        if isinstance(state, RustDensityMatrix):
+            return dm_simu_rs.get_dm(state.rho)
+        return state.rho
 
     def run_pattern(self, backend, **kwargs):
         """run the pattern on cloud-based quantum devices and their simulators.
