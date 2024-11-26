@@ -3,7 +3,9 @@ from __future__ import annotations
 import copy
 import itertools
 import sys
+import tempfile
 import typing
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -482,6 +484,16 @@ class TestPattern:
         state_ref = pattern_ref.simulate_pattern()
         state_p = pattern.simulate_pattern()
         assert np.abs(np.dot(state_p.flatten().conjugate(), state_ref.flatten())) == pytest.approx(1)
+
+    def test_to_qasm3(self, fx_rng: Generator) -> None:
+        nqubits = 5
+        depth = 5
+        circuit = rand_circuit(nqubits, depth, fx_rng)
+        pattern = circuit.transpile().pattern
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            filename = tmpdirname + "output"
+            pattern.to_qasm3(filename)
+            assert Path(filename).with_suffix(".qasm").is_file()
 
 
 def cp(circuit: Circuit, theta: float, control: int, target: int) -> None:
