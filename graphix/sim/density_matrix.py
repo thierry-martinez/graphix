@@ -306,33 +306,35 @@ class RustDensityMatrix:
         self.Nqubit = dm_simu_rs.get_nqubits(self.rho)
 
     def __repr__(self):
-        return f"DensityMatrix, data size: {len(dm_simu_rs.get_dm(self.rho))}, nqubits:{self.Nqubit}"
+        dim_size = np.sqrt(len(dm_simu_rs.get_dm(self.rho)))
+        return f"DensityMatrix, data size: {(dim_size, dim_size)}, nqubits:{dm_simu_rs.get_nqubits(self.rho)}"
 
     def evolve_single(self, op, target: int):
-        print(f"EVOLVE SINGLE RUSTDM")
+        # print(f"EVOLVE SINGLE RUSTDM")
         dm_simu_rs.evolve_single(self.rho, op.flatten(), target)
-        print(self)
-        print("==========")
+        #print(self)
+        #print("==========")
 
     def evolve(self, op: np.ndarray, qargs: list[int]):
-        print(f"EVOLVE RUSTDM")
+        #print(f"EVOLVE RUSTDM")
         dm_simu_rs.evolve(self.rho, op, qargs)
-        print(self)
-        print("==========")
+        #print(self)
+        #print("==========")
 
 
     def normalize(self):
         """normalize density matrix"""
-        print("NORMALIZE RUSTDM:")
+        # print("NORMALIZE RUSTDM:")
 
         rho = dm_simu_rs.get_dm(self.rho)
         self.Nqubit = dm_simu_rs.get_nqubits(self.rho)
+
         rho = np.reshape(rho, (2 ** self.Nqubit, 2 ** self.Nqubit))
         rho /= np.trace(rho)
         self.rho = dm_simu_rs.set(rho.flatten())
 
-        print(self)
-        print("==========")
+        #print(self)
+        # print("==========")
 
     def apply_channel(self, channel: KrausChannel, qargs):
         """Applies a channel to a density matrix.
@@ -355,7 +357,7 @@ class RustDensityMatrix:
             This shouldn't happen since :class:`graphix.channel.KrausChannel` objects are normalized by construction.
         ....
         """
-        print(f"APPLY CHANNEL RUSTDM:")
+        #print(f"APPLY CHANNEL RUSTDM:")
         result_array = np.zeros((2**self.Nqubit, 2**self.Nqubit), dtype=np.complex128)
         tmp_dm = deepcopy(self)
 
@@ -373,7 +375,7 @@ class RustDensityMatrix:
 
         if not np.allclose(self.rho.trace(), 1.0):
             raise ValueError("The output density matrix is not normalized, check the channel definition.")
-        print("==========")
+        #print("==========")
 
 
 
@@ -386,23 +388,37 @@ class RustDensityMatrix:
             other : :class: `DensityMatrix` object
                 DensityMatrix object to be tensored with self.
         """
-        print("TENSOR RUSTDM:")
+        # print("TENSOR RUSTDM:")
         if not isinstance(other, RustDensityMatrix):
             other = RustDensityMatrix(other)
-        print(f"self dm: {self}")
-        print(f"{dm_simu_rs.get_dm(self.rho)}")
-        print(f"other dm: {other}")
-        print(f"{dm_simu_rs.get_dm(other.rho)}")
+        
+        Nqubit = dm_simu_rs.get_nqubits(self.rho)
+        other_qubits = dm_simu_rs.get_nqubits(other.rho)
+
+        #print(f"self dm: {self}")
+        #print(f"other dm: {other}")
+        # print(f"{np.reshape(dm_simu_rs.get_dm(self.rho), (2 ** Nqubit, 2 ** Nqubit))}")
+        
+        # print(f"{np.reshape(dm_simu_rs.get_dm(other.rho), (2 ** other_qubits, 2 ** other_qubits))}")
+        
         dm_simu_rs.tensor_dm(self.rho, other.rho)
         self.Nqubit = dm_simu_rs.get_nqubits(self.rho)
-        print(f"After tensor: {self}")
-        # self.rho = np.kron(self.rho.data, other.rho.data)
-        # self.rho.nqubits += other.rho.nqubits
-        print("==========")
+        
+        #print(f"After tensor: {self}")
+        #print(f"====================")
 
     def entangle(self, edge):
-        print(f'ENTANGLE RUSTDM {edge}')
+        # print(f'ENTANGLE RUSTDM {edge}')
+        # print(self)
         dm_simu_rs.entangle(self.rho, edge)
+        # print(f"====================")
+
+    def swap(self, edge):
+        #print(f"SWAP RUSTDM {edge}")
+        #print(self)
+        dm_simu_rs.swap(self.rho, edge)
+        #print(f"====================")
+        
         
     def expectation_single(self, op, i):
         """Expectation value of single-qubit operator.
@@ -413,7 +429,7 @@ class RustDensityMatrix:
         Returns:
             complex: expectation value (real for hermitian ops!).
         """
-        print(f"EXPECTATION SINGLE RUSTDM:")
+        # print(f"EXPECTATION SINGLE RUSTDM:")
 
         if not (0 <= i < self.Nqubit):
             raise ValueError(f"Wrong target qubit {i}. Must between 0 and {self.Nqubit-1}.")
@@ -430,7 +446,6 @@ class RustDensityMatrix:
         st1.rho = rho_tensor.reshape((2**self.Nqubit, 2**self.Nqubit))
 
         return np.trace(st1.rho)
-        print("==========")
 
     
     def ptrace(self, qargs):
@@ -441,9 +456,9 @@ class RustDensityMatrix:
             qargs : list of ints or int
                 Indices of qubit to trace out.
         """
-        print(f"PTRACE RUSTDM")
-        print(f"qargs: {qargs}")
-        print(f"self before ptrace:\n\t{self}")
+        #print(f"PTRACE RUSTDM")
+        #print(f"qargs: {qargs}")
+        #print(f"self before ptrace:\n\t{self}")
         n = dm_simu_rs.get_nqubits(self.rho)
         
         if isinstance(qargs, int):
@@ -454,8 +469,11 @@ class RustDensityMatrix:
         
         dm_simu_rs.ptrace(self.rho, list(qargs))
         
-        self.Nqubit = dm_simu_rs.get_nqubits(self.rho)
-        print(f"self after ptrace:\n\t{self}\n================")
+        # print(f"self after ptrace:\n\t{self}\n================")
+        rho = dm_simu_rs.get_dm(self.rho)        
+
+        self.rho = dm_simu_rs.set(rho)   
+        self.Nqubit = dm_simu_rs.get_nqubits(self.rho)     
 
 class DensityMatrixBackend(Backend):
     """MBQC simulator with density matrix method."""

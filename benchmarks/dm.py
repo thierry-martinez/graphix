@@ -39,7 +39,6 @@ def random_pattern(nqubits, depth):
     pattern = circuit.transpile().pattern
     pattern.standardize()
     pattern.minimize_space()
-    print(f"PATTERN MAX_SPACE: {pattern.max_space()}\n================")
     return pattern
 
 
@@ -51,17 +50,16 @@ class TimeSuite:
         for pattern in self.patterns:
             numpy_result = pattern.simulate_pattern(backend="densitymatrix", impl=DensityMatrix)
             rust_result = pattern.simulate_pattern(backend="densitymatrix", impl=RustDensityMatrix)
-            print(rust_result.shape)
             np.testing.assert_equal(len(numpy_result.flatten()), len(rust_result.flatten()))
             np.testing.assert_almost_equal(numpy_result.flatten(), rust_result.flatten(), decimal=2)
 
     def time_impl(self, impl):
         for pattern in self.patterns:
-            pattern.simulate_pattern(impl=impl)
+            pattern.simulate_pattern(backend="densitymatrix", impl=impl)
 
 
 ts = TimeSuite()
-ts.setup(10, 1, 1)
+ts.setup(20, 5, 2)
 ts.test_consistency()
 
 
