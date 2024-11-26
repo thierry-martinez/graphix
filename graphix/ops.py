@@ -21,14 +21,18 @@ class States:
 class Ops:
     """Basic single- and two-qubits operators"""
 
-    x = np.array([[0, 1], [1, 0]])
-    y = np.array([[0, -1j], [1j, 0]])
-    z = np.array([[1, 0], [0, -1]])
-    s = np.array([[1, 0], [0, 1j]])
-    h = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
-    cz = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])
-    cnot = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
-    swap = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+    x = np.array([[0, 1], [1, 0]], dtype=np.complex128)
+    y = np.array([[0, -1j], [1j, 0]], dtype=np.complex128)
+    z = np.array([[1, 0], [0, -1]], dtype=np.complex128)
+    s = np.array([[1, 0], [0, 1j]], dtype=np.complex128)
+    h = np.array([[1, 1], [1, -1]], dtype=np.complex128) / np.sqrt(2)
+    cz = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]], dtype=np.complex128)
+    cnot = np.array(
+        [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]], dtype=np.complex128
+    )
+    swap = np.array(
+        [[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=np.complex128
+    )
     ccx = np.array(
         [
             [1, 0, 0, 0, 0, 0, 0, 0],
@@ -39,7 +43,8 @@ class Ops:
             [0, 0, 0, 0, 0, 1, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 1],
             [0, 0, 0, 0, 0, 0, 1, 0],
-        ]
+        ],
+        dtype=np.complex128,
     )
     Pauli_ops = [np.eye(2), x, y, z]
 
