@@ -59,20 +59,20 @@ class TimeSuite:
 
 
 ts = TimeSuite()
-ts.setup(20, 5, 2)
+ts.setup(20, 6, 2)
 ts.test_consistency()
 
 
-def benchmark(ts, impl):
+def benchmark(ts, impl, identifier):
     pr = cProfile.Profile()
     pr.enable()
     ts.time_impl(impl)
     pr.disable()
     s = io.StringIO()
     ps = pstats.Stats(pr, stream=s).sort_stats(pstats.SortKey.CUMULATIVE)
-    ps.print_stats()
+    ps.print_stats(identifier)
     print(s.getvalue())
 
 
-benchmark(ts, graphix.sim.density_matrix.DensityMatrix)
-benchmark(ts, graphix.sim.density_matrix.RustDensityMatrix)
+benchmark(ts, graphix.sim.density_matrix.DensityMatrix, "density_matrix")
+benchmark(ts, graphix.sim.density_matrix.RustDensityMatrix, "dm_simu_rs|density_matrix")
