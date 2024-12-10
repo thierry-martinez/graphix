@@ -8,6 +8,8 @@ import pytest
 
 from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
 from graphix.noise_models.noiseless_noise_model import NoiselessNoiseModel
+from graphix.noise_models.neighbors_noise_model import NeighborsNoiseModel
+from graphix.channels import depolarising_channel, two_qubit_depolarising_channel
 from graphix.ops import Ops
 from graphix.transpiler import Circuit
 
@@ -433,4 +435,26 @@ class TestNoisyDensityMatrixBackend:
             or np.allclose(res.rho, Ops.X @ exact @ Ops.X)
             or np.allclose(res.rho, Ops.Z @ exact @ Ops.Z)
             or np.allclose(res.rho, Ops.Z @ Ops.X @ exact @ Ops.X @ Ops.Z)
+        )
+
+    def test_noisy_neighbors_measure_confuse_hadamard(self, fx_rng: Generator) -> None:
+        hadamardpattern = self.hpat()
+        res = hadamardpattern.simulate_pattern(
+            backend="densitymatrix",
+            noise_model=NeighborsNoiseModel(one_qubit_channel=depolarising_channel, two_qubits_channel=two_qubit_depolarising_channel, measure_error_prob=1.0),
+            rng=fx_rng,
+        )
+        # result should be |1>
+        assert np.allclose(res.rho, np.array([[0.0, 0.0], [0.0, 1.0]]))
+
+        # arbitrary probability
+        measure_error_pr = fx_rng.random()
+        print(f"measure_error_pr = {measure_error_pr}")
+        res = hadamardpattern.simulate_pattern(
+            backend="densitymatrix", noise_model=NeighborsNoiseModel(one_qubit_channel=depolarising_channel, two_qubits_channel=two_qubit_depolarising_channel, measure_error_prob=measure_error_pr), rng=fx_rng
+        )
+        # result should be |1>
+        assert np.allclose(res.rho, np.array([[1.0, 0.0], [0.0, 0.0]])) or np.allclose(
+            res.rho,
+            np.array([[0.0, 0.0], [0.0, 1.0]]),
         )
