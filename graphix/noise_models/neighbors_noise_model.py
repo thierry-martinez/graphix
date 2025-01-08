@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+from itertools import combinations
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -23,48 +25,58 @@ class NeighborsNoiseModel(NoiseModel):
     """
 
     def __init__(
-        self, channel_specifier: dict[str, KrausChannel], rng: Generator = None, input_graph: nx.Graph = None
+        self,
+        channel_specifier: dict[Literal["input"] | CommandKind, KrausChannel],
+        rng: Generator = None,
+        input_graph: nx.Graph = None,
     ) -> None:
-        self._state_graph: nx.Graph = input_graph  # Global tracking of the neighbors (entanglement and position)
+        self._state_graph: nx.Graph = (
+            input_graph if input_graph is not None else nx.Graph()
+        )  # Global tracking of the neighbors (entanglement and position)
         self.rng = ensure_rng(rng)
         self.channel_specifier = channel_specifier
 
-    def _get_neighbors(self, nodes: list[int]) -> list[int]:
-        """Return the neighbors of multiple nodes."""
-        return [neighbor for n in nodes for neighbor in self._state_graph.neighbors(n)]
+    def _noise_with_combinations(
+        self, neighbors: list[int], channel: KraussChannel, noise: Noise | None = None
+    ) -> Noise:
+        """Return a noise applied on every combinations of the neighbors.
+
+        If noise is defined, it will be extended. Otherwise it will be newly created.
+        """
+        if noise is None:
+            noise = Noise()
+
+        if channel.nqubit < len(neighbors):
+            warnings.warn(f"Krauss channel with {channel.nqubit} qubits can not be applied to {len(neighbors)} qubits.")
+            return noise
+
+        neighbor_combinations = combinations(neighbors, channel.nqubit)  # Get all combinations of the neighbor nodes
+        noise.extend(
+            [(channel, list(comb)) for comb in neighbor_combinations]
+        )  # Update noise by adding the channel with each combination
+
+        return noise
 
     def input_nodes(
         self,
         nodes: list[int],
     ) -> Noise:
-        """Return the noise to apply to the input nodes' neighbors.
+        """Return the noise to apply to the input nodes neighbors.
 
         For each nodes, check if they have neighbors.
         If so, compose the nodes on which the channel will be applied
         according to its number of qubits.
         """
-        if self._state_graph is None:
-            self._state_graph = nx.Graph(nodes)
-
+        self._state_graph.add_nodes_from(nodes)
         channel = self.channel_specifier["input"]
         noise = Noise()
         for n in nodes:  # ITerate through each nodes
-            neighbors = self._state_graph.neighbors(n)  # Get neighbors
+            neighbors = list(self._state_graph.neighbors(n))
+
             if len(neighbors) == 0:
                 continue
-            channel_nqubits = channel.nqubit
-            target_neighbors = []
 
-            assert channel_nqubits <= len(
-                neighbors
-            ), f"Krauss channel with {channel_nqubits} qubits can not be applied to {len(neighbors) + 1} qubits."
-
-            for i in range(
-                len(neighbors) - channel_nqubits + 1
-            ):  # Compose targets according to the channel's number of qubits
-                target_neighbors += tuple(neighbors[i : i + channel_nqubits - 1])
-
-            noise.extend([(channel, list(target)) for target in target_neighbors])  # Update noise
+            noise = self._noise_with_combinations(neighbors, channel, noise)
 
         return noise
 
@@ -76,44 +88,37 @@ class NeighborsNoiseModel(NoiseModel):
         M: removes a node from the state graph.
         """
         kind = cmd.kind
+        channel = self.channel_specifier[kind]
+
         if kind == CommandKind.N:
-            if cmd.node not in self._state_graph:
-                self._state_graph.add_node(cmd.node)
+            self._state_graph.add_node(
+                cmd.node
+            )  # Update state_graph. No need to check if the node already in the state graph because we can't prepare a node twice.
+            if channel.nqubit != 1:
+                warnings.warn(f"Krauss channel with {channel_nqubits} qubits can not be applied to 1 qubit.")
+                return Noise()
+            else:
+                return Noise([(channel, [cmd.node])])
 
-            neighbors = self._get_neighborshbors([cmd.node])
+        elif kind == CommandKind.E:
+            self._state_graph.add_edge(cmd.nodes[0], cmd.nodes[1])
+            neighbors_first = self._state_graph.neighbors(cmd.nodes[0])
+            neighbors_second = self._state_graph.neighbors(cmd.nodes[1])
 
-            channel = self.channel_specifier["N"]
-            channel_nqubits = channel.nqubit
+            # Question: should we take into account that two nodes could have the same neighbors
+            # Or only consider each neighbors once even if they are common neighbors of the two node to intricate?
+            # For now, creates a set containing each neighbor once even if they are common to the two nodes to intricate.
+            neighbors = set(neighbors_first + neighbors_second)
 
-            target_neighbors = []
+            return self._noise_with_combinations(neighbors, channel)
 
-            assert channel_nqubits <= len(
-                neighbors
-            ), f"Krauss channel with {channel_nqubits} qubits can not be applied to {len(neighbors) + 1} qubits."
+        else:  # M, X, Z, C, T commands
+            neighbors = self._state_graph.neighbors(cmd.node)
 
-            for i in range(
-                len(neighbors) - channel_nqubits + 1
-            ):  # Compose targets according to the channel's number of qubits
-                target_neighbors += tuple(neighbors[i : i + channel_nqubits - 1])
+            if kind == CommandKind.M:
+                self._state_graph.remove_node(cmd.node)
 
-        if kind == CommandKind.E:
-            # TODO
-            return []
-
-        if kind == CommandKind.M:
-            # TODO
-            return []
-
-        if kind == CommandKind.X:
-            # TODO
-            return []
-
-        if kind == CommandKind.Z:
-            # TODO
-            return []
-
-        if kind == CommandKind.C or kind == CommandKind.T:
-            return [(KrausChannel([]), [])]
+            return self._noise_with_combinations(neighbors, channel)
 
         typing_extensions.assert_never(kind)
 
