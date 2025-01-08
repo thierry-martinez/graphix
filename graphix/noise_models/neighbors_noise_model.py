@@ -50,7 +50,7 @@ class NeighborsNoiseModel(NoiseModel):
             warnings.warn(f"Krauss channel with {channel.nqubit} qubits can not be applied to {len(neighbors)} qubits.")
             return noise
 
-        neighbor_combinations = combinations(neighbors, channel.nqubit)  # Get all combinations of the neighbor nodes
+        neighbor_combinations = list(combinations(neighbors, channel.nqubit))  # Get all combinations of the neighbor nodes
         noise.extend(
             [(channel, list(comb)) for comb in neighbor_combinations]
         )  # Update noise by adding the channel with each combination

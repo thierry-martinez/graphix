@@ -444,3 +444,34 @@ class TestNoisyDensityMatrixBackend:
             or np.allclose(res.rho, Ops.Z @ exact @ Ops.Z)
             or np.allclose(res.rho, Ops.Z @ Ops.X @ exact @ Ops.X @ Ops.Z)
         )
+
+    # Test the noise with neighbors with an initial graph, which could represent a noise depending on the position of each nodes.
+    def test_noisy_neighbors_input_depolarizing(self, fx_rng: Generator) -> None:
+        import networkx as nx
+        from graphix.pattern import Pattern
+        from itertools import combinations
+        
+        initial_nodes = [0, 1]    # Nodes that are initially noisy by their positions affecting other's states
+        
+        p = Pattern(initial_nodes)
+        initial_graph = nx.Graph()
+        comb = list(combinations(initial_nodes, 2))
+        initial_graph.add_edges_from(comb)
+
+        res = p.simulate_pattern(
+            backend="densitymatrix", noise_model=NeighborsNoiseModel(
+                {"input": depolarising_channel(1.)},
+                fx_rng,
+                initial_graph
+            )
+        )
+
+        expected = p.simulate_pattern(
+            "densitymatrix",
+            noise_model=DepolarisingNoiseModel(prepare_error_prob=1.)
+        )
+
+        assert (
+            np.allclose(res.rho, expected.rho)
+        )
+
