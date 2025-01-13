@@ -27,13 +27,11 @@ class NeighborsNoiseModel(NoiseModel):
     def __init__(
         self,
         channel_specifier: dict[Literal["input"] | CommandKind, KrausChannel],
-        rng: Generator = None,
         input_graph: nx.Graph = None,
     ) -> None:
         self._state_graph: nx.Graph = (
             input_graph if input_graph is not None else nx.Graph()
         )  # Global tracking of the neighbors (entanglement and position)
-        self.rng = ensure_rng(rng)
         self.channel_specifier = channel_specifier
 
     def _noise_with_combinations(
@@ -88,7 +86,9 @@ class NeighborsNoiseModel(NoiseModel):
         M: removes a node from the state graph.
         """
         kind = cmd.kind
-        channel = self.channel_specifier[kind]
+        channel = self.channel_specifier.get(kind)
+        if channel is None:
+            return []
 
         if kind == CommandKind.N:
             self._state_graph.add_node(
@@ -124,7 +124,4 @@ class NeighborsNoiseModel(NoiseModel):
 
     def confuse_result(self, result: bool) -> bool:
         """Assign wrong measurement result."""
-        if self.rng.uniform() < self.measure_error_prob:
-            return not result
-        else:
-            return result
+        return result

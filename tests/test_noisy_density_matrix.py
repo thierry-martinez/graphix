@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import networkx as nx
 import numpy as np
 import numpy.typing as npt
 import pytest
 
 from graphix.channels import depolarising_channel, two_qubit_depolarising_tensor_channel
 from graphix.command import CommandKind
+from graphix.noise_models.noise_model import ComposeNoiseModel
 from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
 from graphix.noise_models.neighbors_noise_model import NeighborsNoiseModel
 from graphix.noise_models.noiseless_noise_model import NoiselessNoiseModel
@@ -461,17 +463,31 @@ class TestNoisyDensityMatrixBackend:
         res = p.simulate_pattern(
             backend="densitymatrix", noise_model=NeighborsNoiseModel(
                 {"input": depolarising_channel(1.)},
-                fx_rng,
                 initial_graph
-            )
+            ),
+            rng=fx_rng,
         )
 
         expected = p.simulate_pattern(
             "densitymatrix",
-            noise_model=DepolarisingNoiseModel(prepare_error_prob=1.)
+            noise_model=DepolarisingNoiseModel(prepare_error_prob=1.),
+            rng=fx_rng,
         )
 
         assert (
             np.allclose(res.rho, expected.rho)
         )
 
+
+    # test measurement confuse outcome
+    def test_compose(self, fx_rng: Generator) -> None:
+        hadamardpattern = self.hpat()
+        res = hadamardpattern.simulate_pattern(
+            backend="densitymatrix",
+            noise_model=ComposeNoiseModel([DepolarisingNoiseModel(measure_error_prob=1.0), NeighborsNoiseModel(
+                {"input": DepolarisingNoiseModel(measure_error_prob=1.0)},
+                nx.Graph())]),
+            rng=fx_rng,
+        )
+        # result should be |1>
+        assert np.allclose(res.rho, np.array([[0.0, 0.0], [0.0, 1.0]]))
