@@ -1397,7 +1397,7 @@ class Pattern:
         sim.run()
         if isinstance(sim.backend, RustDensityMatrix):
             return dm_simu_rs.get_dm(sim.backend.rho)
-        return sim.backend.state
+        return sim.backend.state.rho
 
     def run_pattern(self, backend, **kwargs):
         """Run the pattern on cloud-based quantum devices and their simulators.

@@ -326,7 +326,7 @@ class DensityMatrix(State):
 
         self.rho = result_array
 
-class RustDensityMatrix:
+class RustDensityMatrix(State):
     """Rust density matrix simulator"""
     def __init__(self, nqubit=1, plus_states=True):
         if plus_states:
@@ -522,7 +522,7 @@ class DensityMatrixBackend(Backend):
         rng: :class:`np.random.Generator` (default: `None`)
             random number generator to use for measurements
         """
-        super().__init__(DensityMatrix(nqubit=0), pr_calc=pr_calc, rng=rng)
+        super().__init__(impl(nqubit=0), pr_calc=pr_calc, rng=rng)
 
     def apply_channel(self, channel: KrausChannel, qargs) -> None:
         """Apply channel to the state.
