@@ -48,10 +48,10 @@ class TimeSuite:
 
     def test_consistency(self):
         for pattern in self.patterns:
-            numpy_result = pattern.simulate_pattern(backend="densitymatrix", impl=DensityMatrix)
-            rust_result = pattern.simulate_pattern(backend="densitymatrix", impl=RustDensityMatrix)
-            np.testing.assert_equal(len(numpy_result.flatten()), len(rust_result.flatten()))
-            np.testing.assert_almost_equal(numpy_result.flatten(), rust_result.flatten(), decimal=2)
+            numpy_result = pattern.simulate_pattern(backend="densitymatrix", impl=DensityMatrix).rho.flatten()
+            rust_result = pattern.simulate_pattern(backend="densitymatrix", impl=RustDensityMatrix)            
+            np.testing.assert_equal(len(numpy_result), len(rust_result))
+            np.testing.assert_almost_equal(numpy_result, rust_result, decimal=2)
 
     def time_impl(self, impl):
         for pattern in self.patterns:

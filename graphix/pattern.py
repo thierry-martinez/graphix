@@ -1395,6 +1395,9 @@ class Pattern:
         """
         sim = PatternSimulator(self, backend=backend, **kwargs)
         sim.run()
+        state = sim.backend.state
+        if isinstance(state, RustDensityMatrix):
+            return dm_simu_rs.get_dm(state.rho)
         return sim.backend.state
 
     def run_pattern(self, backend, **kwargs):
