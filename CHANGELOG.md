@@ -13,9 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Now variables, functions, and classes are named based on PEP8.
-- `KrausChannel` class now uses `KrausData` class (originally `dict`) to store Kraus operators.
-
 ## [0.2.16] - 2024-08-26
 
 This version introduces several important interface changes, aimed at secure expression and improved code maintainability.
@@ -28,6 +25,8 @@ This version introduces several important interface changes, aimed at secure exp
   - Added `class Instruction` for the gate network expression in quantum circuit model. Every instruction can be instanciated using this class by passing its name as defined in the Enum `InstructionName`.
 - `class graphix.OpenGraph` to transpile between graphix patterns and pyzx graphs.
 - `class graphix.pauli.PauliMeasurement` as a new Pauli measurement checks (used in `pattern.perform_pauli_measurements`).
+- Now variables, functions, and classes are named based on PEP8.
+- `KrausChannel` class now uses `KrausData` class (originally `dict`) to store Kraus operators.
 
 ### Fixed
 

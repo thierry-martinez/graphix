@@ -21,6 +21,7 @@ with the pattern, graph or the (generalized-)flow.
 #
 import numpy as np
 
+import graphix.pauli
 from graphix import Circuit
 from graphix.fundamentals import Plane
 

@@ -11,6 +11,7 @@ from networkx.utils import graphs_equal
 
 from graphix.clifford import Clifford
 from graphix.fundamentals import Plane
+import graphix.pauli
 from graphix.graphsim.graphstate import GraphState
 from graphix.graphsim.utils import convert_rustworkx_to_networkx, is_graphs_equal
 from graphix.ops import Ops

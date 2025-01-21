@@ -12,6 +12,7 @@ Ref: Backens et al., Quantum 5, 421 (2021).
 
 from __future__ import annotations
 
+import numbers
 from copy import deepcopy
 from itertools import product
 from typing import TYPE_CHECKING
