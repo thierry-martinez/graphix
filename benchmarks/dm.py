@@ -59,7 +59,7 @@ class TimeSuite:
 
 
 ts = TimeSuite()
-ts.setup(20, 7, 2)
+ts.setup(20, 8, 2)
 ts.test_consistency()
 
 
