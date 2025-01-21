@@ -213,7 +213,7 @@ class Backend:
     def apply_single(self, node, op) -> None:
         """Apply a single gate to the state."""
         index = self.node_index.index(node)
-        self.state.evolve_single(op=op, i=index)
+        self.state.evolve_single(op, index)
 
     def apply_clifford(self, node: int, clifford: Clifford) -> None:
         """Apply single-qubit Clifford gate, specified by vop index specified in graphix.clifford.CLIFFORD."""

@@ -328,44 +328,67 @@ class DensityMatrix(State):
 
 class RustDensityMatrix(State):
     """Rust density matrix simulator"""
-    def __init__(self, nqubit=1, plus_states=True):
-        if plus_states:
-            state = dm_simu_rs.Plus
-        else:
-            state = dm_simu_rs.Zero
-        self.rho = dm_simu_rs.new_dm(nqubit, state)
-        self.Nqubit = dm_simu_rs.get_nqubits(self.rho)
+    def __init__(self, data=BasicStates.PLUS, nqubit: int | None = None):
+        if nqubit is not None and nqubit < 0:
+            raise ValueError("nqubit must be a non-negative integer.")
+
+        def check_size_consistency(mat):
+            if nqubit is not None and mat.shape != (2**nqubit, 2**nqubit):
+                raise ValueError(
+                    f"Inconsistent parameters between nqubit = {nqubit} and the shape of the provided density matrix = {mat.shape}."
+                )
+
+        if isinstance(data, DensityMatrix):
+            check_size_consistency(data)
+            # safe: https://numpy.org/doc/stable/reference/generated/numpy.ndarray.copy.html
+            self.rho = dm_simu_rs.new_dm_from_vec(data.rho)
+            return
+        if isinstance(data, RustDensityMatrix):
+            check_size_consistency(data)
+            # safe: https://numpy.org/doc/stable/reference/generated/numpy.ndarray.copy.html
+            self.rho = data.rho
+            return
+        if isinstance(data, Iterable):
+            input_list = list(data)
+            if len(input_list) != 0:
+                # needed since Object is iterable but not subscribable!
+                try:
+                    if isinstance(input_list[0], Iterable) and isinstance(input_list[0][0], numbers.Number):
+                        rho = np.array(input_list)
+                        if not lv.is_qubitop(rho):
+                            raise ValueError("Cannot interpret the provided density matrix as a qubit operator.")
+                        check_size_consistency(rho)
+                        if not lv.is_unit_trace(rho):
+                            raise ValueError("Density matrix must have unit trace.")
+                        if not lv.is_psd(rho):
+                            raise ValueError("Density matrix must be positive semi-definite.")
+                        self.rho = dm_simu_rs.new_dm_from_vec(rho)
+                        return
+                except TypeError:
+                    pass
+        statevec = Statevec(data, nqubit)
+        # NOTE this works since np.outer flattens the inputs!
+        rho = np.outer(statevec.psi, statevec.psi.conj())
+        self.rho = dm_simu_rs.new_dm_from_vec(rho)
 
     def __repr__(self):
         dim_size = np.sqrt(len(dm_simu_rs.get_dm(self.rho)))
         return f"DensityMatrix, data size: {(dim_size, dim_size)}, nqubits:{dm_simu_rs.get_nqubits(self.rho)}"
 
+    def add_nodes(self, nqubit, data) -> None:
+        """Add nodes to the density matrix."""
+        dm_to_add = RustDensityMatrix(nqubit=nqubit, data=data)
+        self.tensor(dm_to_add)
+
     def evolve_single(self, op, target: int):
-        # print(f"EVOLVE SINGLE RUSTDM")
-        dm_simu_rs.evolve_single(self.rho, op.flatten(), target)
-        #print(self)
-        #print("==========")
+        dm_simu_rs.evolve_single_new(self.rho, op.flatten(), target)
 
     def evolve(self, op: np.ndarray, qargs: list[int]):
-        #print(f"EVOLVE RUSTDM")
-        dm_simu_rs.evolve(self.rho, op, qargs)
-        #print(self)
-        #print("==========")
-
+        dm_simu_rs.evolve_new(self.rho, op, qargs)
 
     def normalize(self):
         """normalize density matrix"""
-        # print("NORMALIZE RUSTDM:")
-
-        rho = dm_simu_rs.get_dm(self.rho)
-        self.Nqubit = dm_simu_rs.get_nqubits(self.rho)
-
-        rho = np.reshape(rho, (2 ** self.Nqubit, 2 ** self.Nqubit))
-        rho /= np.trace(rho)
-        self.rho = dm_simu_rs.set(rho.flatten())
-
-        #print(self)
-        # print("==========")
+        dm_simu_rs.normalize(self.rho)
 
     def apply_channel(self, channel: KrausChannel, qargs):
         """Applies a channel to a density matrix.
@@ -388,27 +411,26 @@ class RustDensityMatrix(State):
             This shouldn't happen since :class:`graphix.channel.KrausChannel` objects are normalized by construction.
         ....
         """
-        #print(f"APPLY CHANNEL RUSTDM:")
         result_array = np.zeros((2**self.Nqubit, 2**self.Nqubit), dtype=np.complex128)
-        tmp_dm = deepcopy(self)
 
         if not isinstance(channel, KrausChannel):
             raise TypeError("Can't apply a channel that is not a Channel object.")
 
-        for k_op in channel.kraus_ops:
-            tmp_dm.evolve(k_op["operator"], qargs)
-            result_array += k_op["coef"] * np.conj(k_op["coef"]) * tmp_dm.rho
+        for k_op in channel:
+            tmp_dm = dm_simu_rs.evolve(self.rho, k_op["operator"].flatten(), qargs) # dm_simu_rs.evolve() returns the resulting vector without modifying the rust instance.
+            tmp_dm = np.reshape(tmp_dm, (2**self.Nqubit, 2**self.Nqubit))
+            result_array += k_op["coef"] * np.conj(k_op["coef"]) * tmp_dm
             # reinitialize to input density matrix
-            tmp_dm = deepcopy(self)
-
-        # Performance?
-        self.rho = deepcopy(result_array)
-
+        
         if not np.allclose(self.rho.trace(), 1.0):
             raise ValueError("The output density matrix is not normalized, check the channel definition.")
-        #print("==========")
 
+        dm_simu_rs.set(self.rho, result_array.flatten())    # Set the resulting array.
 
+    def remove_qubit(self, loc) -> None:
+        """Remove a qubit."""
+        self.ptrace(loc)
+        self.normalize()
 
     def tensor(self, other):
         r"""Tensor product state with other density matrix.
@@ -419,36 +441,20 @@ class RustDensityMatrix(State):
             other : :class: `DensityMatrix` object
                 DensityMatrix object to be tensored with self.
         """
-        # print("TENSOR RUSTDM:")
         if not isinstance(other, RustDensityMatrix):
             other = RustDensityMatrix(other)
-        
-        Nqubit = dm_simu_rs.get_nqubits(self.rho)
-        other_qubits = dm_simu_rs.get_nqubits(other.rho)
 
-        #print(f"self dm: {self}")
-        #print(f"other dm: {other}")
-        # print(f"{np.reshape(dm_simu_rs.get_dm(self.rho), (2 ** Nqubit, 2 ** Nqubit))}")
-        
-        # print(f"{np.reshape(dm_simu_rs.get_dm(other.rho), (2 ** other_qubits, 2 ** other_qubits))}")
-        
         dm_simu_rs.tensor_dm(self.rho, other.rho)
         self.Nqubit = dm_simu_rs.get_nqubits(self.rho)
-        
-        #print(f"After tensor: {self}")
-        #print(f"====================")
+
 
     def entangle(self, edge):
-        # print(f'ENTANGLE RUSTDM {edge}')
-        # print(self)
-        dm_simu_rs.entangle(self.rho, edge)
-        # print(f"====================")
+        new_dm = dm_simu_rs.entangle(self.rho, edge)
+        dm_simu_rs.set(self.rho, new_dm)
 
     def swap(self, edge):
-        #print(f"SWAP RUSTDM {edge}")
-        #print(self)
-        dm_simu_rs.swap(self.rho, edge)
-        #print(f"====================")
+        new_dm = dm_simu_rs.swap(self.rho, edge)
+        dm_simu_rs.set(self.rho, new_dm)
         
         
     def expectation_single(self, op, i):
@@ -460,23 +466,15 @@ class RustDensityMatrix(State):
         Returns:
             complex: expectation value (real for hermitian ops!).
         """
-        # print(f"EXPECTATION SINGLE RUSTDM:")
-
         if not (0 <= i < self.Nqubit):
             raise ValueError(f"Wrong target qubit {i}. Must between 0 and {self.Nqubit-1}.")
 
         if op.shape != (2, 2):
             raise ValueError("op must be 2x2 matrix.")
 
-        st1 = deepcopy(self)
-        st1.normalize()
-
-        rho_tensor = st1.rho.reshape((2,) * st1.Nqubit * 2)
-        rho_tensor = np.tensordot(op, rho_tensor, axes=[1, i])
-        rho_tensor = np.moveaxis(rho_tensor, 0, i)
-        st1.rho = rho_tensor.reshape((2**self.Nqubit, 2**self.Nqubit))
-
-        return np.trace(st1.rho)
+        op_rs = dm_simu_rs.new_op(op.flatten())
+        result = dm_simu_rs.expectation_single(self.rho, op_rs, i)
+        return result
 
     
     def ptrace(self, qargs):
@@ -487,9 +485,6 @@ class RustDensityMatrix(State):
             qargs : list of ints or int
                 Indices of qubit to trace out.
         """
-        #print(f"PTRACE RUSTDM")
-        #print(f"qargs: {qargs}")
-        #print(f"self before ptrace:\n\t{self}")
         n = dm_simu_rs.get_nqubits(self.rho)
         
         if isinstance(qargs, int):
@@ -499,12 +494,6 @@ class RustDensityMatrix(State):
         assert all([qarg >= 0 and qarg < n for qarg in qargs])
         
         dm_simu_rs.ptrace(self.rho, list(qargs))
-        
-        # print(f"self after ptrace:\n\t{self}\n================")
-        rho = dm_simu_rs.get_dm(self.rho)        
-
-        self.rho = dm_simu_rs.set(rho)   
-        self.Nqubit = dm_simu_rs.get_nqubits(self.rho)     
 
 class DensityMatrixBackend(Backend):
     """MBQC simulator with density matrix method."""
@@ -522,7 +511,7 @@ class DensityMatrixBackend(Backend):
         rng: :class:`np.random.Generator` (default: `None`)
             random number generator to use for measurements
         """
-        super().__init__(impl(nqubit=0), pr_calc=pr_calc, rng=rng)
+        super().__init__(state=impl(nqubit=0), pr_calc=pr_calc, rng=rng)
 
     def apply_channel(self, channel: KrausChannel, qargs) -> None:
         """Apply channel to the state.
