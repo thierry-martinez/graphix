@@ -416,18 +416,20 @@ class RustDensityMatrix(State):
             This shouldn't happen since :class:`graphix.channel.KrausChannel` objects are normalized by construction.
         ....
         """
-        result_array = np.zeros((2**self.Nqubit, 2**self.Nqubit), dtype=np.complex128)
+        nqubits = dm_simu_rs.get_nqubits(self.rho)
+        result_array = np.zeros((2**nqubits, 2**nqubits), dtype=np.complex128)
 
         if not isinstance(channel, KrausChannel):
             raise TypeError("Can't apply a channel that is not a Channel object.")
 
         for k_op in channel:
-            tmp_dm = dm_simu_rs.evolve(self.rho, k_op["operator"].flatten(), qargs) # dm_simu_rs.evolve() returns the resulting vector without modifying the rust instance.
-            tmp_dm = np.reshape(tmp_dm, (2**self.Nqubit, 2**self.Nqubit))
-            result_array += k_op["coef"] * np.conj(k_op["coef"]) * tmp_dm
+            tmp_dm = dm_simu_rs.evolve(self.rho, k_op.operator.flatten(), qargs) # dm_simu_rs.evolve() returns the resulting vector without modifying the rust instance.
+            nqubits = dm_simu_rs.get_nqubits(self.rho)
+            tmp_dm = np.reshape(tmp_dm, (2**nqubits, 2**nqubits))
+            result_array += k_op.coef * np.conj(k_op.coef) * tmp_dm
             # reinitialize to input density matrix
         
-        if not np.allclose(self.rho.trace(), 1.0):
+        if not np.allclose(np.trace(result_array), 1.0):
             raise ValueError("The output density matrix is not normalized, check the channel definition.")
 
         dm_simu_rs.set(self.rho, result_array.flatten())    # Set the resulting array.
@@ -478,7 +480,7 @@ class RustDensityMatrix(State):
             raise ValueError("op must be 2x2 matrix.")
 
         op_rs = dm_simu_rs.new_op(op.flatten())
-        result = dm_simu_rs.expectation_single(self.rho, op_rs, i)
+        result = dm_simu_rs.expectation_single(self.rho, op_rs, i).real
         return result
 
     
