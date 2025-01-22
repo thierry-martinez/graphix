@@ -43,7 +43,7 @@ UNITS = np.array([1, 1j])
 
 
 def rand_dm(
-    dim: int, rng: Generator | None = None, rank: int | None = None, dm_dtype=True
+    dim: int, impl, rng: Generator | None = None, rank: int | None = None, dm_dtype=True, 
 ) -> DensityMatrix | npt.NDArray:
     """Generate random density matrices (positive semi-definite matrices with unit trace).
 
@@ -81,9 +81,14 @@ def rand_dm(
 
     if dm_dtype:
         from graphix.sim.density_matrix import DensityMatrix  # circumvent circular import
+        from graphix.sim.density_matrix import RustDensityMatrix
 
         # will raise an error if incorrect dimension
-        return DensityMatrix(data=dm)
+
+        if impl == None or not isinstance(impl, (DensityMatrix, RustDensityMatrix)):
+            return DensityMatrix(data=dm)
+
+        return impl(data=dm)
     else:
         return dm
 
