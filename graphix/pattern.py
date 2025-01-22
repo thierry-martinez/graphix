@@ -1397,7 +1397,8 @@ class Pattern:
         sim.run()
         state = sim.backend.state
         if isinstance(state, RustDensityMatrix):
-            return dm_simu_rs.get_dm(state.rho)
+            nqubits = dm_simu_rs.get_nqubits(state.rho)
+            return dm_simu_rs.get_dm(state.rho).reshape((2 ** nqubits, 2 ** nqubits))
         return sim.backend.state
 
     def run_pattern(self, backend, **kwargs):
