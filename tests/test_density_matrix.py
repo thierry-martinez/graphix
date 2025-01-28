@@ -1043,7 +1043,7 @@ class TestRustDensityMatrix:
         # input with a State object
         dm = RustDensityMatrix(data=states)
 
-        assert dm.matrix.dims() == (2**nqb, 2**nqb)
+        assert dm.dims == (2**nqb, 2**nqb)
         assert np.allclose(dm.matrix, expected_dm)
 
     def test_init_with_state_fail(self, fx_rng: Generator) -> None:
@@ -1072,19 +1072,21 @@ class TestRustDensityMatrix:
 
         # input with a Statevec object
         dm = RustDensityMatrix(data=vec)
-        assert dm.dims() == (2**nqb, 2**nqb)
+        assert dm.dims == (2**nqb, 2**nqb)
         assert np.allclose(dm.matrix, expected_dm)
 
         sv_list = [state.get_statevector() for state in states]
         sv = functools.reduce(np.kron, sv_list)
 
+        print(sv)
+
         # input with a statevector DATA (not Statevec object)
         dm2 = RustDensityMatrix(data=sv)
 
-        print("dims", dm.dims())
-        assert dm2.dims() == (2**nqb, 2**nqb)
-        assert np.allclose(dm2.rho, dm.matrix)
-        assert np.allclose(dm2.rho, expected_dm)
+        print("dims", dm.dims)
+        assert dm2.dims == (2**nqb, 2**nqb)
+        assert np.allclose(dm2.matrix, dm.matrix)
+        assert np.allclose(dm2.matrix, expected_dm)
 
     def test_init_with_densitymatrix_sucess(self, fx_rng: Generator) -> None:
         # both "numerical" RustDensityMatrix and RustDensityMatrix object
@@ -1103,14 +1105,14 @@ class TestRustDensityMatrix:
 
         dm = RustDensityMatrix(data=num_dm)
 
-        assert dm.dims() == (2**nqb, 2**nqb)
+        assert dm.dims == (2**nqb, 2**nqb)
         assert np.allclose(dm.matrix, expected_dm)
 
         # check copying
         dm2 = RustDensityMatrix(dm)
-        assert dm2.dims() == (2**nqb, 2**nqb)
-        assert np.allclose(dm2.rho, expected_dm)
-        assert np.allclose(dm2.rho, dm.matrix)
+        assert dm2.dims == (2**nqb, 2**nqb)
+        assert np.allclose(dm2.matrix, expected_dm)
+        assert np.allclose(dm2.matrix, dm.matrix)
 
     def test_evolve_single_fail(self, fx_rng: Generator) -> None:
         dm = RustDensityMatrix(nqubit=2)
@@ -1175,8 +1177,11 @@ class TestRustDensityMatrix:
         psi1 = np.moveaxis(psi1, 0, target_qubit)
         psi1 = psi1.reshape(2**nqb)
 
+        result = dm.expectation_single(op, target_qubit)
+        expected = np.dot(psi.conjugate(), psi1)
+        print(result, expected)
         # watch out ordering. Expval unitary is cpx so psi1 on the right to match DM.
-        assert np.allclose(np.dot(psi.conjugate(), psi1), dm.expectation_single(op, target_qubit))
+        assert np.allclose(expected, result)
 
     def test_tensor_fail(self) -> None:
         dm = RustDensityMatrix(nqubit=1)
@@ -1497,8 +1502,9 @@ class TestRustDensityMatrix:
         # check on single qubit first
         # # create random density matrix
         # data = randobj.rand_herm(2 ** fx_rng.integers(2, 4))
-        dm = randobj.rand_dm(2, fx_rng, impl=RustDensityMatrix)
+        dm = randobj.rand_dm(dim=2, rng=fx_rng, impl=RustDensityMatrix)
 
+        print(f"DM = {dm}")
         # copy of initial dm
         rho_test = dm.matrix
 
@@ -1575,7 +1581,7 @@ class TestRustDensityMatrix:
         # check on single qubit first
         # # create random density matrix
         # data = randobj.rand_herm(2 ** fx_rng.integers(2, 4))
-        dm = randobj.rand_dm(2, fx_rng, impl=RustDensityMatrix)
+        dm = randobj.rand_dm(dim=2, rng=fx_rng, impl=RustDensityMatrix)
 
         # copy of initial dm
         rho_test = dm.matrix
@@ -1775,20 +1781,20 @@ class TestDensityMatrixBackend:
     # test initialization only
     def test_init_success(self, fx_rng: Generator, hadamardpattern, randpattern, nqb) -> None:
         # plus state (default)
-        backend = DensityMatrixBackend()
+        backend = DensityMatrixBackend(impl=RustDensityMatrix)
         backend.add_nodes(hadamardpattern.input_nodes)
         dm = RustDensityMatrix(nqubit=1)
         assert np.allclose(dm.matrix, backend.state.matrix)
         # assert backend.state.nqubit == 1
-        assert backend.state.dims() == (2, 2)
+        assert backend.state.dims == (2, 2)
 
         # minus state
-        backend = DensityMatrixBackend()
+        backend = DensityMatrixBackend(impl=RustDensityMatrix)
         backend.add_nodes(randpattern.input_nodes, data=BasicStates.MINUS)
         dm = RustDensityMatrix(nqubit=nqb, data=BasicStates.MINUS)
         assert np.allclose(dm.matrix, backend.state.matrix)
         # assert backend.state.nqubit == 1
-        assert backend.state.dims() == (2**nqb, 2**nqb)
+        assert backend.state.dims == (2**nqb, 2**nqb)
 
         rand_angles = fx_rng.random(nqb) * 2 * np.pi
         rand_planes = fx_rng.choice(np.array([i for i in Plane]), nqb)
@@ -1796,11 +1802,11 @@ class TestDensityMatrixBackend:
 
         expected_dm = RustDensityMatrix(data=states).matrix
 
-        backend = DensityMatrixBackend()
+        backend = DensityMatrixBackend(impl=RustDensityMatrix)
         backend.add_nodes(randpattern.input_nodes, data=states)
         dm = backend.state
 
-        assert dm.dims() == (2**nqb, 2**nqb)
+        assert dm.dims == (2**nqb, 2**nqb)
         assert np.allclose(dm.matrix, expected_dm)
         assert backend.nqubit == nqb
 
@@ -1826,7 +1832,7 @@ class TestDensityMatrixBackend:
     def test_add_nodes(self) -> None:
         circ = Circuit(1)
         pattern = circ.transpile().pattern
-        backend = DensityMatrixBackend()
+        backend = DensityMatrixBackend(impl=RustDensityMatrix)
         backend.add_nodes(pattern.input_nodes)
         backend.add_nodes([1])
         expected_matrix = np.array([0.25] * 16).reshape(4, 4)
@@ -1835,7 +1841,7 @@ class TestDensityMatrixBackend:
     def test_entangle_nodes(self) -> None:
         circ = Circuit(1)
         pattern = circ.transpile().pattern
-        backend = DensityMatrixBackend()
+        backend = DensityMatrixBackend(impl=RustDensityMatrix)
         backend.add_nodes(pattern.input_nodes)
         backend.add_nodes([1])
         backend.entangle_nodes((0, 1))
@@ -1852,7 +1858,7 @@ class TestDensityMatrixBackend:
         pattern = circ.transpile().pattern
 
         measure_method = DefaultMeasureMethod()
-        backend = DensityMatrixBackend(pr_calc=pr_calc)
+        backend = DensityMatrixBackend(impl=RustDensityMatrix, pr_calc=pr_calc)
         backend.add_nodes(pattern.input_nodes)
         backend.add_nodes([1, 2])
         backend.entangle_nodes((0, 1))
@@ -1868,7 +1874,7 @@ class TestDensityMatrixBackend:
         circ.rx(0, np.pi / 2)
         pattern = circ.transpile().pattern
         measure_method = DefaultMeasureMethod()
-        backend = DensityMatrixBackend()
+        backend = DensityMatrixBackend(impl=RustDensityMatrix)
         backend.add_nodes(pattern.input_nodes)
         # node 0 initialized in Backend
         backend.add_nodes([1, 2])

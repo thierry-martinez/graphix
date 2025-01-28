@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     from numpy.random import Generator
 
-    from graphix.sim.density_matrix import DensityMatrix
+    from graphix.sim.density_matrix import DensityMatrix, RustDensityMatrix
 
 
 def rand_herm(sz: int, rng: Generator | None = None) -> npt.NDArray:
@@ -43,8 +43,8 @@ UNITS = np.array([1, 1j])
 
 
 def rand_dm(
-    dim: int, impl, rng: Generator | None = None, rank: int | None = None, dm_dtype=True, 
-) -> DensityMatrix | npt.NDArray:
+    dim: int, impl=None, rng: Generator | None = None, rank: int | None = None, dm_dtype=True, 
+) -> DensityMatrix | RustDensityMatrix | npt.NDArray:
     """Generate random density matrices (positive semi-definite matrices with unit trace).
 
     Returns either a :class:`graphix.sim.density_matrix.DensityMatrix` or a :class:`np.ndarray` depending on the parameter `dm_dtype`.
@@ -80,14 +80,12 @@ def rand_dm(
     dm = rand_u @ dm @ rand_u.transpose().conj()
 
     if dm_dtype:
-        from graphix.sim.density_matrix import DensityMatrix  # circumvent circular import
-        from graphix.sim.density_matrix import RustDensityMatrix
+        from graphix.sim.density_matrix import DensityMatrix, RustDensityMatrix  # circumvent circular import
 
         # will raise an error if incorrect dimension
 
-        if impl == None or not isinstance(impl, (DensityMatrix, RustDensityMatrix)):
-            return DensityMatrix(data=dm)
-
+        if impl == None and not isinstance(impl, (DensityMatrix, RustDensityMatrix)):
+            impl = DensityMatrix
         return impl(data=dm)
     else:
         return dm
