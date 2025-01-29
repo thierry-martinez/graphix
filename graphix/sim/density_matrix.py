@@ -445,13 +445,21 @@ class RustDensityMatrix(State):
         dm_to_add = RustDensityMatrix(nqubit=nqubit, data=data)
         self.tensor(dm_to_add)
 
-    def evolve_single(self, op, target: int):
+    def _evolve_single(self, op, target: int):
         assert target >= 0 and target < self.nqubit
         if op.shape != (2, 2):
             raise ValueError("op must be 2*2 matrix.")
-        dm_simu_rs.evolve_single_new(self.rho, op.flatten(), target)
 
-    def evolve(self, op: np.ndarray, qargs: list[int]):
+        return dm_simu_rs.evolve_single(self.rho, op.flatten(), target)
+
+    def evolve_single(self, op, target: int):
+        try:
+            res = self._evolve_single(op, target)
+        except Exception as e:
+            raise e
+        dm_simu_rs.set(self.rho, res)
+
+    def _evolve(self, op: np.ndarray, qargs: list[int]):
         d = op.shape
         # check it is a matrix.
         if len(d) == 2:
@@ -475,7 +483,14 @@ class RustDensityMatrix(State):
             raise ValueError("Incorrect target indices.")
         if len(set(qargs)) != nqb_op:
             raise ValueError("A repeated target qubit index is not possible.")
-        dm_simu_rs.evolve_new(self.rho, op.flatten(), qargs)
+        return dm_simu_rs.evolve(self.rho, op.flatten(), qargs)
+
+    def evolve(self, op: np.ndarray, qargs: list[int]):
+        try:
+            res = self._evolve(op, qargs)
+        except Exception as e:
+            raise e
+        dm_simu_rs.set(self.rho, res)
 
     def normalize(self):
         """normalize density matrix"""
@@ -509,10 +524,9 @@ class RustDensityMatrix(State):
             raise TypeError("Can't apply a channel that is not a Channel object.")
 
         for k_op in channel:
-            tmp_dm = dm_simu_rs.evolve(self.rho, k_op.operator.flatten(), qargs) # dm_simu_rs.evolve() returns the resulting vector without modifying the rust instance.
+            tmp_dm = self._evolve(k_op.operator, qargs)
             tmp_dm = np.reshape(tmp_dm, (2**nqubits, 2**nqubits))
             result_array += k_op.coef * np.conj(k_op.coef) * tmp_dm
-            # reinitialize to input density matrix
         
         if not np.allclose(np.trace(result_array), 1.0):
             raise ValueError("The output density matrix is not normalized, check the channel definition.")
