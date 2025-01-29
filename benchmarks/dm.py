@@ -3,6 +3,7 @@ import graphix
 import cProfile, pstats, io
 
 from graphix.sim.density_matrix import DensityMatrix, RustDensityMatrix
+from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
 
 
 def simple_random_circuit(nqubit, depth):
@@ -53,9 +54,9 @@ class TimeSuite:
             np.testing.assert_equal(len(numpy_result), len(rust_result))
             np.testing.assert_almost_equal(numpy_result, rust_result, decimal=2)
 
-    def time_impl(self, impl):
+    def time_impl(self, impl, noise_model):
         for pattern in self.patterns:
-            pattern.simulate_pattern(backend="densitymatrix", impl=impl)
+            pattern.simulate_pattern(backend="densitymatrix", impl=impl, noise_model=noise_model)
 
 
 ts = TimeSuite()
@@ -63,16 +64,17 @@ ts.setup(20, 8, 2)
 ts.test_consistency()
 
 
-def benchmark(ts, impl, identifier):
+def benchmark(ts, impl, noise_model, identifier):
     pr = cProfile.Profile()
     pr.enable()
-    ts.time_impl(impl)
+    ts.time_impl(impl, noise_model)
     pr.disable()
     s = io.StringIO()
     ps = pstats.Stats(pr, stream=s).sort_stats(pstats.SortKey.CUMULATIVE)
     ps.print_stats(identifier)
     print(s.getvalue())
 
+noise_model = DepolarisingNoiseModel(1., 1., 1., 1., 1., 1.)
 
-benchmark(ts, graphix.sim.density_matrix.DensityMatrix, "density_matrix")
-benchmark(ts, graphix.sim.density_matrix.RustDensityMatrix, "dm_simu_rs|density_matrix")
+benchmark(ts, graphix.sim.density_matrix.DensityMatrix, noise_model, "density_matrix")
+benchmark(ts, graphix.sim.density_matrix.RustDensityMatrix, noise_model, "density_matrix")
