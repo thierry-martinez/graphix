@@ -562,7 +562,7 @@ class TestDensityMatrix:
         # check on single qubit first
         # # create random density matrix
         # data = randobj.rand_herm(2 ** fx_rng.integers(2, 4))
-        dm = randobj.rand_dm(2, fx_rng)
+        dm = randobj.rand_dm(dim=2, rng=fx_rng)
 
         # copy of initial dm
         rho_test = dm.rho
@@ -640,7 +640,7 @@ class TestDensityMatrix:
         # check on single qubit first
         # # create random density matrix
         # data = randobj.rand_herm(2 ** fx_rng.integers(2, 4))
-        dm = randobj.rand_dm(2, fx_rng)
+        dm = randobj.rand_dm(dim=2, rng=fx_rng)
 
         # copy of initial dm
         rho_test = dm.rho
