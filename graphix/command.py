@@ -50,6 +50,9 @@ class N(_KindChecker):
     kind: ClassVar[Literal[CommandKind.N]] = dataclasses.field(default=CommandKind.N, init=False)
 
 
+BaseN = N
+
+
 @dataclasses.dataclass
 class M(_KindChecker):
     """Measurement command. By default the plane is set to 'XY', the angle to 0, empty domains and identity vop."""
