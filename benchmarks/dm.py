@@ -43,29 +43,30 @@ def random_pattern(nqubits, depth):
 
 
 class TimeSuite:
-    def setup(self, ncircuits, nqubits, depth):
+    def setup(self, ncircuits, nqubits, depth, noise_model):
         self.patterns = [random_pattern(nqubits, depth) for _ in range(ncircuits)]
+        self.noise_model = noise_model
 
     def test_consistency(self):
         for pattern in self.patterns:
-            numpy_result = pattern.simulate_pattern(backend="densitymatrix", impl=DensityMatrix).rho.flatten()
-            rust_result = pattern.simulate_pattern(backend="densitymatrix", impl=RustDensityMatrix).flatten()
+            numpy_result = pattern.simulate_pattern(backend="densitymatrix", impl=DensityMatrix, noise_model=self.noise_model).rho.flatten()
+            rust_result = pattern.simulate_pattern(backend="densitymatrix", impl=RustDensityMatrix, noise_model=self.noise_model).flatten()
             np.testing.assert_equal(len(numpy_result), len(rust_result))
             np.testing.assert_almost_equal(numpy_result, rust_result, decimal=2)
 
-    def time_impl(self, impl, noise_model):
+    def time_impl(self, impl):
         for pattern in self.patterns:
-            pattern.simulate_pattern(backend="densitymatrix", impl=impl, noise_model=noise_model)
+            pattern.simulate_pattern(backend="densitymatrix", impl=impl, noise_model=self.noise_model)
 
 
-def benchmark(ts, impl, noise_model, identifier):
+def benchmark(ts, impl, identifier):
     """ 
     Returns the profiling stats as a string.
     """
     pr = cProfile.Profile()
 
     pr.enable()
-    ts.time_impl(impl, noise_model)
+    ts.time_impl(impl)
     pr.disable()
 
     # Capture profiling stats in a string
@@ -93,24 +94,22 @@ def parse_tot_time(profiling_output):
 def benchmark_by_simulation_size(ncircuits=20, max_nqubits=10, circuit_depth=2, noise_model=None):
     times = []  # Elapsed simulation times according to the number of qubits of the circuits.
     ts = TimeSuite()
-    for nqubit in range(1, max_nqubits):   # For each number of qubits, create n Circuits and benchmark the two backends to compare their performance.
-        ts.setup(ncircuits, nqubit, circuit_depth)
+    for nqubit in range(1, max_nqubits + 1):   # For each number of qubits, create n Circuits and benchmark the two backends to compare their performance.
+        ts.setup(ncircuits, nqubit, circuit_depth, noise_model=noise_model)
 
         ts.test_consistency()   # Ensure we get the same results.
 
-        graphix_bench_output = benchmark(ts, impl=DensityMatrix, noise_model=noise_model, identifier="density_matrix")
-        rs_bench_output = benchmark(ts, impl=RustDensityMatrix, noise_model=noise_model, identifier="dm_simu_rs|density_matrix")
+        graphix_bench_output = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
+        rs_bench_output = benchmark(ts, impl=RustDensityMatrix, identifier="dm_simu_rs|density_matrix")
 
         print(f"Benchmark with {nqubit} qubits graphix:\n{graphix_bench_output}")
         print(f"Benchmark with {nqubit} qubits rs:\n{rs_bench_output}")
         print("========================================================")
 
-        graphix_tot_time = parse_tot_time(graphix_bench_output)
-        rs_tot_time = parse_tot_time(rs_bench_output)
+        graphix_tot_time = parse_tot_time(graphix_bench_output) / ncircuits
+        rs_tot_time = parse_tot_time(rs_bench_output) / ncircuits
 
         # Append total times as a tuple of (graphix_tot_time, rs_total_time)
         times.append((graphix_tot_time, rs_tot_time))
 
     return times
-
-benchmark_by_simulation_size()
