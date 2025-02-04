@@ -517,21 +517,11 @@ class RustDensityMatrix(State):
             This shouldn't happen since :class:`graphix.channel.KrausChannel` objects are normalized by construction.
         ....
         """
-        nqubits = self.nqubit
-        result_array = np.zeros((2**nqubits, 2**nqubits), dtype=np.complex128)
-
-        if not isinstance(channel, KrausChannel):
-            raise TypeError("Can't apply a channel that is not a Channel object.")
-
-        for k_op in channel:
-            tmp_dm = self._evolve(k_op.operator, qargs)
-            tmp_dm = np.reshape(tmp_dm, (2**nqubits, 2**nqubits))
-            result_array += k_op.coef * np.conj(k_op.coef) * tmp_dm
-        
-        if not np.allclose(np.trace(result_array), 1.0):
-            raise ValueError("The output density matrix is not normalized, check the channel definition.")
-
-        dm_simu_rs.set(self.rho, result_array.flatten())    # Set the resulting array.
+        channel = [
+            (complex(data.coef), [complex(d) for d in data.operator.flatten()])
+            for data in channel
+        ]
+        dm_simu_rs.apply_channel(self.rho, channel, qargs)
 
     def remove_qubit(self, loc) -> None:
         """Remove a qubit."""
