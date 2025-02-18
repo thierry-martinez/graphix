@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -93,21 +95,66 @@ def _op_mat_from_result(vec: tuple[float, float, float], result: bool) -> np.nda
     return op_mat
 
 
-def perform_measure(qubit: int, plane: Plane, angle: float, state, rng: Generator, pr_calc: bool = True) -> bool:
+def perform_measure(qubit: int, plane: Plane, angle: float, state, selector: BranchSelector) -> bool:
     """Perform measurement of a qubit."""
     vec = plane.polar(angle)
-    if pr_calc:
-        op_mat = _op_mat_from_result(vec, False)
-        prob_0 = state.expectation_single(op_mat, qubit)
-        result = rng.random() > prob_0
-        if result:
-            op_mat = _op_mat_from_result(vec, True)
+    op_mat_0 = None
+    def compute_expectation_0():
+        nonlocal op_mat_0
+        op_mat_0 = _op_mat_from_result(vec, False)
+        return state.expectation_single(op_mat_0, qubit)
+    result = selector.measure(qubit, compute_expectation_0)
+    if result:
+        op_mat = _op_mat_from_result(vec, True)
     else:
-        # choose the measurement result randomly
-        result = rng.choice([0, 1])
-        op_mat = _op_mat_from_result(vec, result)
+        if op_mat_0 is None:
+            op_mat = _op_mat_from_result(vec, False)
+        else:
+            op_mat = op_mat_0
     state.evolve_single(op_mat, qubit)
     return result
+
+
+class BranchSelector(ABC):
+    @abstractmethod
+    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool: ...
+
+
+@dataclass
+class FixedBranchSelector(BranchSelector):
+    results: dict[int, bool]
+    default: BranchSelector
+
+    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
+        result = self.results.get(qubit)
+        if result is None:
+            return self.default.measure(qubit, compute_expectation_0)
+        return result
+
+
+@dataclass
+class ConstBranchSelector(BranchSelector):
+    result: bool
+
+    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
+        return self.result
+
+
+class RandomBranchSelector(BranchSelector):
+    def __init__(
+        self,
+        pr_calc: bool = True,
+        rng: Generator | None = None
+    ) -> None:
+        self.__pr_calc = pr_calc
+        self.__rng = ensure_rng(rng)
+
+    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
+        if self.__pr_calc:
+            prob_0 = compute_expectation_0()
+            return self.__rng.random() > prob_0
+        else:
+            return self.__rng.choice([0, 1])
 
 
 class Backend:
@@ -117,7 +164,8 @@ class Backend:
         self,
         state: State,
         node_index: NodeIndex | None = None,
-        pr_calc: bool = True,
+        branch_selector: BranchSelector | None = None,
+        pr_calc: bool | None = None,
         rng: Generator | None = None,
     ):
         """Construct a backend.
@@ -138,11 +186,15 @@ class Backend:
             self.__node_index = NodeIndex()
         else:
             self.__node_index = node_index.copy()
-        if not isinstance(pr_calc, bool):
-            raise TypeError("`pr_calc` should be bool")
         # whether to compute the probability
-        self.__pr_calc = pr_calc
-        self.__rng = ensure_rng(rng)
+        if branch_selector is None:
+            if pr_calc is None:
+                pr_calc = True
+            self.__branch_selector = RandomBranchSelector(pr_calc=pr_calc, rng=rng)
+        else:
+            if pr_calc is not None or rng is not None:
+                raise ValueError("Cannot specify both branch selector and pr_calc/rng")
+            self.__branch_selector = branch_selector
 
     def copy(self) -> Backend:
         """Return a copy of the backend."""
@@ -194,7 +246,7 @@ class Backend:
         measurement: Measurement
         """
         loc = self.node_index.index(node)
-        result = perform_measure(loc, measurement.plane, measurement.angle, self.state, self.__rng, self.__pr_calc)
+        result = perform_measure(loc, measurement.plane, measurement.angle, self.state, self.__branch_selector)
         self.node_index.remove(node)
         self.state.remove_qubit(loc)
         return result

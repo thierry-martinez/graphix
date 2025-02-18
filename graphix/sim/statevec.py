@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 class StatevectorBackend(Backend):
     """MBQC simulator with statevector method."""
 
-    def __init__(self, input_state: Data = BasicStates.PLUS, pr_calc=True, rng: Generator | None = None) -> None:
+    def __init__(self, input_state: Data = BasicStates.PLUS, **kwargs) -> None:
         """
         Construct a state vector backend.
 
@@ -40,7 +40,7 @@ class StatevectorBackend(Backend):
         rng: :class:`np.random.Generator` (default: `None`)
             random number generator to use for measurements
         """
-        super().__init__(Statevec(nqubit=0), pr_calc=pr_calc, rng=rng)
+        super().__init__(Statevec(nqubit=0), **kwargs)
 
 
 CZ_TENSOR = np.array(

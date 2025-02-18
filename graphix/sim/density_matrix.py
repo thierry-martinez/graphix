@@ -334,7 +334,7 @@ class DensityMatrix(State):
 class DensityMatrixBackend(Backend):
     """MBQC simulator with density matrix method."""
 
-    def __init__(self, pr_calc=True, rng: Generator | None = None) -> None:
+    def __init__(self, **kwargs) -> None:
         """Construct a density matrix backend.
 
         Parameters
@@ -347,7 +347,7 @@ class DensityMatrixBackend(Backend):
         rng: :class:`np.random.Generator` (default: `None`)
             random number generator to use for measurements
         """
-        super().__init__(DensityMatrix(nqubit=0), pr_calc=pr_calc, rng=rng)
+        super().__init__(DensityMatrix(nqubit=0), **kwargs)
 
     def apply_channel(self, channel: KrausChannel, qargs) -> None:
         """Apply channel to the state.
