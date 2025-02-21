@@ -154,7 +154,7 @@ class RandomBranchSelector(BranchSelector):
             prob_0 = compute_expectation_0()
             return self.__rng.random() > prob_0
         else:
-            return self.__rng.choice([0, 1])
+            return self.__rng.choice([0, 1]) == 1
 
 
 class Backend:
