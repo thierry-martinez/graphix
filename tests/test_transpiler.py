@@ -18,6 +18,14 @@ class TestTranspilerUnitGates:
         state_mbqc = pattern.simulate_pattern(rng=fx_rng)
         assert np.abs(np.dot(state_mbqc.flatten().conjugate(), state.flatten())) == pytest.approx(1)
 
+    def test_cz(self, fx_rng: Generator) -> None:
+        circuit = Circuit(2)
+        circuit.cz(0, 1)
+        pattern = circuit.transpile().pattern
+        state = circuit.simulate_statevector().statevec
+        state_mbqc = pattern.simulate_pattern(rng=fx_rng)
+        assert np.abs(np.dot(state_mbqc.flatten().conjugate(), state.flatten())) == pytest.approx(1)
+
     def test_hadamard(self, fx_rng: Generator) -> None:
         circuit = Circuit(1)
         circuit.h(0)

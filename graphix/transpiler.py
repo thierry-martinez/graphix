@@ -92,6 +92,21 @@ class Circuit:
         assert control != target
         self.instruction.append(instruction.CNOT(control=control, target=target))
 
+    def cz(self, control: int, target: int):
+        """Apply a CZ gate.
+
+        Parameters
+        ----------
+        control : int
+            control qubit
+        target : int
+            target qubit
+        """
+        assert control in self.active_qubits
+        assert target in self.active_qubits
+        assert control != target
+        self.instruction.append(instruction.CZ(control=control, target=target))
+
     def swap(self, qubit1: int, qubit2: int):
         """Apply a SWAP gate.
 
@@ -294,6 +309,23 @@ class Circuit:
                 )
                 pattern.extend(seq)
                 n_node += 2
+            elif kind == instruction.InstructionKind.CZ:
+                assert out[instr.control] is not None
+                assert out[instr.target] is not None
+                ancilla = n_node
+                out[instr.target], seq = self._h_command(out[instr.target], ancilla)
+                pattern.extend(seq)
+                n_node += 1
+                ancilla = [n_node, n_node + 1]
+                out[instr.control], out[instr.target], seq = self._cnot_command(
+                    out[instr.control], out[instr.target], ancilla
+                )
+                pattern.extend(seq)
+                n_node += 2
+                ancilla = n_node
+                out[instr.target], seq = self._h_command(out[instr.target], ancilla)
+                pattern.extend(seq)
+                n_node += 1
             elif kind == instruction.InstructionKind.SWAP:
                 out[instr.targets[0]], out[instr.targets[1]] = (
                     out[instr.targets[1]],
@@ -877,6 +909,8 @@ class Circuit:
             kind = instr.kind
             if kind == instruction.InstructionKind.CNOT:
                 state.cnot((instr.control, instr.target))
+            elif kind == instruction.InstructionKind.CZ:
+                state.entangle((instr.control, instr.target))
             elif kind == instruction.InstructionKind.SWAP:
                 state.swap(instr.targets)
             elif kind == instruction.InstructionKind.I:

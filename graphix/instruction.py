@@ -18,6 +18,7 @@ class InstructionKind(Enum):
     CCX = enum.auto()
     RZZ = enum.auto()
     CNOT = enum.auto()
+    CZ = enum.auto()
     SWAP = enum.auto()
     H = enum.auto()
     S = enum.auto()
@@ -71,6 +72,15 @@ class CNOT(_KindChecker):
     target: int
     control: int
     kind: ClassVar[Literal[InstructionKind.CNOT]] = dataclasses.field(default=InstructionKind.CNOT, init=False)
+
+
+@dataclasses.dataclass
+class CZ(_KindChecker):
+    """CZ circuit instruction."""
+
+    target: int
+    control: int
+    kind: ClassVar[Literal[InstructionKind.CZ]] = dataclasses.field(default=InstructionKind.CZ, init=False)
 
 
 @dataclasses.dataclass
