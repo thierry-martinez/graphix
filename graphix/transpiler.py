@@ -18,6 +18,7 @@ from graphix.fundamentals import Plane
 from graphix.ops import Ops
 from graphix.pattern import Pattern
 from graphix.sim import base_backend
+from graphix.sim.base_backend import BranchSelector, RandomBranchSelector
 from graphix.sim.statevec import Data, Statevec
 
 if TYPE_CHECKING:
@@ -849,18 +850,24 @@ class Circuit:
             elif cmd.nodes in old_out:
                 cmd.nodes = output_nodes[old_out.index(cmd.nodes)]
 
-    def simulate_statevector(self, input_state: Data | None = None) -> SimulateResult:
+    def simulate_statevector(self, input_state: Data | None = None, branch_selector: BranchSelector | None = None) -> SimulateResult:
         """Run statevector simulation of the gate sequence.
 
         Parameters
         ----------
         input_state : :class:`graphix.sim.statevec.Statevec`
+            input state (default: |+> for every qubit)
+
+        branch_selector: :class:`graphix.sim.base_backend.BranchSelector`
+            branch selector for measures (default: `graphix.sim.base_backend.RandomBranchSelector()`)
 
         Returns
         -------
         result : :class:`SimulateResult`
             output state of the statevector simulation and results of classical measures.
         """
+        if branch_selector is None:
+            branch_selector = RandomBranchSelector()
         state = Statevec(nqubit=self.width) if input_state is None else Statevec(nqubit=self.width, data=input_state)
 
         classical_measures = []
@@ -895,7 +902,7 @@ class Circuit:
             elif kind == instruction.InstructionKind.CCX:
                 state.evolve(Ops.CCX, [instr.controls[0], instr.controls[1], instr.target])
             elif kind == instruction.InstructionKind.M:
-                result = base_backend.perform_measure(instr.target, instr.plane, instr.angle * np.pi, state, np.random)
+                result = base_backend.perform_measure(instr.target, instr.plane, instr.angle * np.pi, state, branch_selector)
                 classical_measures.append(result)
             else:
                 raise ValueError(f"Unknown instruction: {instr}")

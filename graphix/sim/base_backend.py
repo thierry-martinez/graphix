@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping
 
 import numpy as np
 
@@ -98,63 +98,140 @@ def _op_mat_from_result(vec: tuple[float, float, float], result: bool) -> np.nda
 def perform_measure(qubit: int, plane: Plane, angle: float, state, selector: BranchSelector) -> bool:
     """Perform measurement of a qubit."""
     vec = plane.polar(angle)
+    # op_mat_0 may contain the matrix operator associated with the outcome 0,
+    # but the value is computed lazily, i.e., only if needed.
     op_mat_0 = None
-    def compute_expectation_0():
+    def get_op_mat_0() -> np.ndarray:
         nonlocal op_mat_0
-        op_mat_0 = _op_mat_from_result(vec, False)
-        return state.expectation_single(op_mat_0, qubit)
+        if op_mat_0 is None:
+            op_mat_0 = _op_mat_from_result(vec, False)
+        return op_mat_0
+    def compute_expectation_0() -> float:
+        return state.expectation_single(get_op_mat_0(), qubit)
     result = selector.measure(qubit, compute_expectation_0)
     if result:
         op_mat = _op_mat_from_result(vec, True)
     else:
-        if op_mat_0 is None:
-            op_mat = _op_mat_from_result(vec, False)
-        else:
-            op_mat = op_mat_0
+        op_mat = get_op_mat_0()
     state.evolve_single(op_mat, qubit)
     return result
 
 
 class BranchSelector(ABC):
+    """Abstract class for branch selectors.
+
+    Branch selectors determine the computation branch that is explored
+    during a simulation, meaning the choice of measurement outcomes.
+    The branch selection can be random (see :class:`RandomBranchSelector`)
+    or deterministic (see :class:`ConstBranchSelector`).
+
+    A branch selector provides the method `measure`, which returns the
+    measurement outcome (0 or 1) for a given qubit.
+    """
+
     @abstractmethod
-    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool: ...
+    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
+        """
+        Return the measurement outcome of `qubit`.
+
+        This method may use the function `compute_expectation_0` to
+        retrieve the expected probability of outcome 0. The probability is
+        computed only if this function is called (lazy computation),
+        ensuring no unnecessary computational cost.
+        """
+
+
+@dataclass
+class RandomBranchSelector(BranchSelector):
+    """Random branch selector.
+
+    Parameters
+    ----------
+    pr_calc : bool, optional
+        Whether to compute the probability distribution before selecting the measurement result.
+        If False, measurements yield 0/1 with equal probability (50% each).
+        Default is `True`.
+    rng : Generator | None, optional
+        Random-number generator for measurements.
+        If `None`, a default random-number generator is used.
+        Default is `None`.
+    """
+
+    pr_calc: bool = True
+    rng: Generator | None = None
+
+    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
+        """
+        Return the measurement outcome of `qubit`.
+
+        If `pr_calc` is `True`, the measurement outcome is determined based on the
+        computed probability of outcome 0. Otherwise, the result is randomly chosen
+        with a 50% chance for either outcome.
+        """
+        self.rng = ensure_rng(self.rng)
+        if self.pr_calc:
+            prob_0 = compute_expectation_0()
+            return self.rng.random() > prob_0
+        return self.rng.choice([0, 1]) == 1
 
 
 @dataclass
 class FixedBranchSelector(BranchSelector):
-    results: dict[int, bool]
-    default: BranchSelector
+    """Branch selector with predefined measurement outcomes.
+
+    The mapping is fixed in `results`. By default, an error is raised if
+    a qubit is measured without a predefined outcome. However, another
+    branch selector can be specified in `default` to handle such cases.
+
+    Parameters
+    ----------
+    results : Mapping[int, bool]
+        A dictionary mapping qubits to their measurement outcomes.
+        If a qubit is not present in this mapping, the `default` branch
+        selector is used.
+    default : BranchSelector | None, optional
+        Branch selector to use for qubits not present in `results`.
+        If `None`, an error is raised when an unmapped qubit is measured.
+        Default is `None`.
+    """
+
+    results: Mapping[int, bool]
+    default: BranchSelector | None = None
 
     def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
+        """
+        Return the predefined measurement outcome of `qubit`, if available.
+
+        If the qubit is not present in `results`, the `default` branch selector
+        is used. If no default is provided, an error is raised.
+        """
         result = self.results.get(qubit)
         if result is None:
+            if self.default is None:
+                raise ValueError(f"Unexpected measurement of qubit {qubit}.")
             return self.default.measure(qubit, compute_expectation_0)
         return result
 
 
 @dataclass
 class ConstBranchSelector(BranchSelector):
+    """Branch selector with a constant measurement outcome.
+
+    The value `result` is returned for every qubit.
+
+    Parameters
+    ----------
+    result : bool
+        The fixed measurement outcome for all qubits.
+    """
+
     result: bool
 
     def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
+        """
+        Return the constant measurement outcome `result` for any qubit.
+        """
         return self.result
-
-
-class RandomBranchSelector(BranchSelector):
-    def __init__(
-        self,
-        pr_calc: bool = True,
-        rng: Generator | None = None
-    ) -> None:
-        self.__pr_calc = pr_calc
-        self.__rng = ensure_rng(rng)
-
-    def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
-        if self.__pr_calc:
-            prob_0 = compute_expectation_0()
-            return self.__rng.random() > prob_0
-        else:
-            return self.__rng.choice([0, 1]) == 1
 
 
 class Backend:
