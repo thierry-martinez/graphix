@@ -55,6 +55,7 @@ class TimeSuite:
             np.testing.assert_almost_equal(numpy_result, rust_result, decimal=2)
 
     def time_impl(self, impl):
+        print(f"Running {self.patterns[0].n_node} nodes patterns for {impl}")
         for pattern in self.patterns:
             pattern.simulate_pattern(backend="densitymatrix", impl=impl, noise_model=self.noise_model)
 
@@ -113,3 +114,16 @@ def benchmark_by_simulation_size(ncircuits=20, max_nqubits=10, circuit_depth=2, 
         times.append((graphix_tot_time, rs_tot_time))
 
     return times
+
+if __name__ == "__main__":
+    ts = TimeSuite()
+
+    noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.5)
+
+    ts.setup(10, 10, 2, noise_model=noise_model)
+    # ts.test_consistency()
+
+    np = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
+    print(np)
+    rs = benchmark(ts, impl=RustDensityMatrix, identifier="dm_simu_rs|density_matrix")
+    print(rs)
