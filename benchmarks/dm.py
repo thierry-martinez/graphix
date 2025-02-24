@@ -57,8 +57,9 @@ class TimeSuite:
     def time_impl(self, impl):
         print(f"Running {self.patterns[0].n_node} nodes patterns for {impl}")
         for pattern in self.patterns:
+            print(".", end="")
             pattern.simulate_pattern(backend="densitymatrix", impl=impl, noise_model=self.noise_model)
-
+        print()
 
 def benchmark(ts, impl, identifier):
     """ 
@@ -120,8 +121,8 @@ if __name__ == "__main__":
 
     noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.5)
 
-    ts.setup(10, 10, 2, noise_model=noise_model)
-    # ts.test_consistency()
+    ts.setup(10, 8, 2, noise_model=noise_model)
+    ts.test_consistency()
 
     np = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
     print(np)
