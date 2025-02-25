@@ -95,7 +95,7 @@ def _op_mat_from_result(vec: tuple[float, float, float], result: bool) -> np.nda
     return op_mat
 
 
-def perform_measure(qubit: int, plane: Plane, angle: float, state, selector: BranchSelector) -> bool:
+def perform_measure(qubit_node: int, qubit_loc: int, plane: Plane, angle: float, state, selector: BranchSelector) -> bool:
     """Perform measurement of a qubit."""
     vec = plane.polar(angle)
     # op_mat_0 may contain the matrix operator associated with the outcome 0,
@@ -107,13 +107,13 @@ def perform_measure(qubit: int, plane: Plane, angle: float, state, selector: Bra
             op_mat_0 = _op_mat_from_result(vec, False)
         return op_mat_0
     def compute_expectation_0() -> float:
-        return state.expectation_single(get_op_mat_0(), qubit)
-    result = selector.measure(qubit, compute_expectation_0)
+        return state.expectation_single(get_op_mat_0(), qubit_loc)
+    result = selector.measure(qubit_node, compute_expectation_0)
     if result:
         op_mat = _op_mat_from_result(vec, True)
     else:
         op_mat = get_op_mat_0()
-    state.evolve_single(op_mat, qubit)
+    state.evolve_single(op_mat, qubit_loc)
     return result
 
 
@@ -323,7 +323,7 @@ class Backend:
         measurement: Measurement
         """
         loc = self.node_index.index(node)
-        result = perform_measure(loc, measurement.plane, measurement.angle, self.state, self.__branch_selector)
+        result = perform_measure(node, loc, measurement.plane, measurement.angle, self.state, self.__branch_selector)
         self.node_index.remove(node)
         self.state.remove_qubit(loc)
         return result
