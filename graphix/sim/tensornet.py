@@ -210,6 +210,10 @@ class TensorNetworkBackend(Backend):
         """Not implemented: cannot apply a channel to a tensor network backend."""
         raise NotImplementedError("Cannot apply a channel to a tensor network backend.")
 
+    def apply_channel(self, channel: KrausChannel, qargs) -> None:
+        """Not implemented: cannot apply a channel to a tensor network backend."""
+        raise NotImplementedError("Cannot apply a channel to a tensor network backend.")
+
 
 class MBQCTensorNet(State, TensorNetwork):
     """Tensor Network Simulator interface for MBQC patterns, using quimb.tensor.core.TensorNetwork."""

@@ -14,7 +14,7 @@ import numpy as np
 
 from graphix import command
 from graphix.clifford import Clifford
-from graphix.command import BaseM, CommandKind, MeasureUpdate
+from graphix.command import BaseN, BaseM, CommandKind, MeasureUpdate
 from graphix.measurements import Measurement
 from graphix.sim.base_backend import Backend
 from graphix.sim.density_matrix import DensityMatrixBackend
@@ -27,8 +27,33 @@ if TYPE_CHECKING:
     from graphix.pattern import Pattern
 
 
+class PrepareMethod(abc.ABC):
+    """Prepare method used by the simulator.
+
+    See `DefaultPrepareMethod` for the default prepare method that implements MBQC.
+
+    To be overwritten by custom preparation methods in the case of delegated QC protocols.
+
+    Example: class `ClientPrepareMethod` in https://github.com/qat-inria/veriphix
+    """
+
+    @abc.abstractmethod
+    def prepare(self, backend: Backend, cmd: BaseN) -> None:
+        """Prepare a node."""
+
+
+class DefaultPrepareMethod(PrepareMethod):
+    """Default prepare method implementing standard preparation for MBQC."""
+
+    def prepare(self, backend: Backend, cmd: BaseN) -> None:
+        """Prepare a node."""
+        backend.add_nodes(nodes=[cmd.node], data=cmd.state)
+
+
 class MeasureMethod(abc.ABC):
-    """Measure method used by the simulator, with default measurement method that implements MBQC.
+    """Measure method used by the simulator.
+
+    See `DefaultMeasureMethod` for the default measurement method that implements MBQC.
 
     To be overwritten by custom measurement methods in the case of delegated QC protocols.
 
@@ -91,7 +116,7 @@ class PatternSimulator:
     """
 
     def __init__(
-        self, pattern, backend="statevector", measure_method: MeasureMethod | None = None, noise_model=None, **kwargs
+        self, pattern, backend="statevector", prepare_method: PrepareMethod | None = None, measure_method: MeasureMethod | None = None, noise_model=None, **kwargs
     ) -> None:
         """
         Construct a pattern simulator.
@@ -131,6 +156,9 @@ class PatternSimulator:
             raise ValueError("Unknown backend.")
         self.set_noise_model(noise_model)
         self.__pattern = pattern
+        if prepare_method is None:
+            prepare_method = DefaultPrepareMethod()
+        self.__prepare_method = prepare_method
         if measure_method is None:
             measure_method = DefaultMeasureMethod(pattern.results)
         self.__measure_method = measure_method
@@ -167,7 +195,7 @@ class PatternSimulator:
                 apply_noise(self.backend, self.noise_model.input_nodes(self.pattern.input_nodes))
         for cmd in self.pattern:
             if cmd.kind == CommandKind.N:
-                self.backend.add_nodes(nodes=[cmd.node], data=cmd.state)
+                self.__prepare_method.prepare(self.backend, cmd)
             elif cmd.kind == CommandKind.E:
                 self.backend.entangle_nodes(edge=cmd.nodes)
             elif cmd.kind == CommandKind.M:
