@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
     from numpy.random import Generator
+    import numpy.typing as npt
 
     from graphix.fundamentals import Plane
     from graphix.measurements import Measurement

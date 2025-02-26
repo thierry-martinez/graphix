@@ -26,6 +26,8 @@ from graphix.visualization import GraphVisualizer
 
 if typing_extensions.TYPE_CHECKING:
     from collections.abc import Iterator
+    from graphix.sim.base_backend import Backend
+    from graphix.sim.density_matrix import Data
 
 
 class NodeAlreadyPreparedError(Exception):
@@ -1154,7 +1156,7 @@ class Pattern:
         meas_order = self._measurement_order_depth()
         self._reorder_pattern(self.sort_measurement_commands(meas_order))
 
-    def minimize_space(self):
+    def minimize_space(self) -> None:
         """Optimize the pattern to minimize the max_space property of the pattern.
 
         The optimized pattern has significantly
@@ -1252,7 +1254,7 @@ class Pattern:
                 n_list.append(nodes)
         return n_list
 
-    def simulate_pattern(self, backend="statevector", input_state=BasicStates.PLUS, **kwargs):
+    def simulate_pattern(self, backend: str | Backend="statevector", input_state: Data=BasicStates.PLUS, **kwargs) -> None:
         """Simulate the execution of the pattern by using :class:`graphix.simulator.PatternSimulator`.
 
         Available backend: ['statevector', 'densitymatrix', 'tensornetwork']
