@@ -257,7 +257,7 @@ class Pattern:
                 f"{len(self.__seq) - lim} more commands truncated. Change lim argument of print_pattern() to show more"
             )
 
-    def standardize(self, method="direct"):
+    def standardize(self, method: str="direct") -> None:
         """Execute standardization of the pattern.
 
         'standard' pattern is one where commands are sorted in the order of
