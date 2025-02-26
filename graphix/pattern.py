@@ -26,7 +26,7 @@ from graphix.visualization import GraphVisualizer
 
 if typing_extensions.TYPE_CHECKING:
     from collections.abc import Iterator
-    from graphix.sim.base_backend import Backend
+    from graphix.sim.base_backend import Backend, State
     from graphix.sim.density_matrix import Data
 
 
@@ -1254,7 +1254,7 @@ class Pattern:
                 n_list.append(nodes)
         return n_list
 
-    def simulate_pattern(self, backend: str | Backend="statevector", input_state: Data=BasicStates.PLUS, **kwargs) -> None:
+    def simulate_pattern(self, backend: str | Backend="statevector", input_state: Data=BasicStates.PLUS, **kwargs) -> State:
         """Simulate the execution of the pattern by using :class:`graphix.simulator.PatternSimulator`.
 
         Available backend: ['statevector', 'densitymatrix', 'tensornetwork']
