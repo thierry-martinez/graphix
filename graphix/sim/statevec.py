@@ -316,7 +316,7 @@ class Statevec(State):
         norm = _get_statevec_norm(self.psi)
         self.psi = self.psi / norm
 
-    def flatten(self):
+    def flatten(self) -> npt.NDArray[np.complex128]:
         """Return flattened statevector."""
         return self.psi.flatten()
 
