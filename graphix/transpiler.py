@@ -936,7 +936,7 @@ class Circuit:
             elif kind == instruction.InstructionKind.CCX:
                 state.evolve(Ops.CCX, [instr.controls[0], instr.controls[1], instr.target])
             elif kind == instruction.InstructionKind.M:
-                result = base_backend.perform_measure(instr.target, instr.plane, instr.angle * np.pi, state, branch_selector)
+                result = base_backend.perform_measure(instr.target, instr.target, instr.plane, instr.angle * np.pi, state, branch_selector)
                 classical_measures.append(result)
             else:
                 raise ValueError(f"Unknown instruction: {instr}")
