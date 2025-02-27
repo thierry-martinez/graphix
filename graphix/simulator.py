@@ -225,5 +225,6 @@ class PatternSimulator:
 
 def apply_noise(backend: Backend, noise: Noise) -> None:
     """Apply a noise to the state of a backend."""
-    for channel, qubits in noise:
+    for element, qubits in noise:
+        channel = element.to_kraus_channel()
         backend.apply_channel(channel, qubits)
