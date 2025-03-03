@@ -15,7 +15,13 @@ from graphix.clifford import Clifford
 from graphix.command import C, CommandKind, E, M, N, X, Z
 from graphix.fundamentals import Plane
 from graphix.measurements import PauliMeasurement
-from graphix.pattern import Pattern, shift_outcomes
+from graphix.pattern import (
+    AlreadyEntangledNodesError,
+    DuplicatedInputNodesError,
+    InvalidNodeError,
+    Pattern,
+    shift_outcomes,
+)
 from graphix.random_objects import rand_circuit, rand_gate
 from graphix.sim.density_matrix import DensityMatrix
 from graphix.simulator import PatternSimulator
@@ -56,6 +62,47 @@ class TestPattern:
         pattern.add(N(node=0))
         pattern.add(N(node=1))
         pattern.add(M(node=0))
+
+    def test_node_already_used_check(self) -> None:
+        pattern = Pattern()
+        pattern.add(N(node=0))
+        with pytest.raises(InvalidNodeError):
+            pattern.add(N(node=0))
+        pattern.add(M(node=0))
+        with pytest.raises(InvalidNodeError):
+            pattern.add(N(node=0))
+
+    def test_duplicated_input_nodes_check(self) -> None:
+        with pytest.raises(DuplicatedInputNodesError):
+            Pattern(input_nodes=[0, 0])
+
+    def test_already_entangled_nodes_check(self) -> None:
+        pattern = Pattern()
+        pattern.add(N(node=0))
+        pattern.add(N(node=1))
+        pattern.add(E(nodes=(0, 1)))
+        with pytest.raises(AlreadyEntangledNodesError):
+            pattern.add(E(nodes=(0, 1)))
+        with pytest.raises(AlreadyEntangledNodesError):
+            pattern.add(E(nodes=(1, 0)))
+
+    def test_node_not_prepared_check(self) -> None:
+        pattern = Pattern()
+        pattern.add(N(node=0))
+        with pytest.raises(InvalidNodeError):
+            pattern.add(E(nodes=(0, 1)))
+        with pytest.raises(InvalidNodeError):
+            pattern.add(M(node=1))
+
+    def test_already_measured_node_check(self) -> None:
+        pattern = Pattern()
+        pattern.add(N(node=0))
+        pattern.add(N(node=1))
+        pattern.add(M(node=0))
+        with pytest.raises(InvalidNodeError):
+            pattern.add(M(node=0))
+        with pytest.raises(InvalidNodeError):
+            pattern.add(E(nodes=(0, 1)))
 
     def test_standardize(self, fx_rng: Generator) -> None:
         nqubits = 2

@@ -19,8 +19,6 @@ from graphix.states import BasicStates
 if TYPE_CHECKING:
     import collections
 
-    from numpy.random import Generator
-
     from graphix.channels import KrausChannel
 
 

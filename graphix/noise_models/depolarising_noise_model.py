@@ -42,7 +42,6 @@ class TwoQubitDepolarisingNoiseElement(NoiseElement):
         return two_qubit_depolarising_channel(self.prob)
 
 
-
 class DepolarisingNoiseModel(NoiseModel):
     """Depolarising noise model.
 
@@ -95,5 +94,4 @@ class DepolarisingNoiseModel(NoiseModel):
         """Assign wrong measurement result cmd = "M"."""
         if self.rng.uniform() < self.measure_error_prob:
             return not result
-        else:
-            return result
+        return result

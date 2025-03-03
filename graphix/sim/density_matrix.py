@@ -8,7 +8,7 @@ from __future__ import annotations
 import copy
 import numbers
 import sys
-from typing import TYPE_CHECKING
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -18,10 +18,6 @@ from graphix.channels import KrausChannel
 from graphix.sim.base_backend import Backend, State
 from graphix.sim.statevec import CNOT_TENSOR, CZ_TENSOR, SWAP_TENSOR, Statevec
 from graphix.states import BasicStates
-
-if TYPE_CHECKING:
-    from numpy.random import Generator
-from collections.abc import Iterable
 
 
 class DensityMatrix(State):

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -18,7 +19,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
     from numpy.random import Generator
-    import numpy.typing as npt
 
     from graphix.fundamentals import Plane
     from graphix.measurements import Measurement
@@ -96,19 +96,24 @@ def _op_mat_from_result(vec: tuple[float, float, float], result: bool) -> np.nda
     return op_mat
 
 
-def perform_measure(qubit_node: int, qubit_loc: int, plane: Plane, angle: float, state, selector: BranchSelector) -> bool:
+def perform_measure(
+    qubit_node: int, qubit_loc: int, plane: Plane, angle: float, state, selector: BranchSelector
+) -> bool:
     """Perform measurement of a qubit."""
     vec = plane.polar(angle)
     # op_mat_0 may contain the matrix operator associated with the outcome 0,
     # but the value is computed lazily, i.e., only if needed.
     op_mat_0 = None
+
     def get_op_mat_0() -> np.ndarray:
         nonlocal op_mat_0
         if op_mat_0 is None:
             op_mat_0 = _op_mat_from_result(vec, False)
         return op_mat_0
+
     def compute_expectation_0() -> float:
         return state.expectation_single(get_op_mat_0(), qubit_loc)
+
     result = selector.measure(qubit_node, compute_expectation_0)
     if result:
         op_mat = _op_mat_from_result(vec, True)

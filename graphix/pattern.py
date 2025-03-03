@@ -8,6 +8,9 @@ from __future__ import annotations
 import dataclasses
 from copy import deepcopy
 from dataclasses import dataclass
+import enum
+from enum import Enum
+from typing import TypeVar
 
 import networkx as nx
 import typing_extensions
@@ -26,25 +29,65 @@ from graphix.visualization import GraphVisualizer
 
 if typing_extensions.TYPE_CHECKING:
     from collections.abc import Iterator
+
     from graphix.sim.base_backend import Backend, State
     from graphix.sim.density_matrix import Data
 
 
-class NodeAlreadyPreparedError(Exception):
-    """Exception raised if a node is already prepared."""
+@dataclass(frozen=True)
+class DuplicatedInputNodesError(Exception):
+    """Exception raised if some nodes appear twice or more in the input node list."""
 
-    def __init__(self, node: int):
-        self.__node = node
+    duplicates: set[int]
 
-    @property
-    def node(self):
-        """Return the node that is already prepared."""
-        return self.__node
-
-    @property
     def __str__(self) -> str:
         """Return the message of the error."""
-        return f"Node already prepared: {self.__node}"
+        return f"Input nodes appearing multiple times: {self.duplicates}"
+
+
+@dataclass(frozen=True)
+class AlreadyEntangledNodesError(Exception):
+    """Exception raised if a given pair of nodes is entangled twice."""
+
+    edge: tuple[int, int]
+
+    def __str__(self) -> str:
+        """Return the message of the error."""
+        return f"Nodes entangled twice: {self.edge}"
+
+
+class InvalidNodeReason(Enum):
+    """Reason for :class:`InvalidNodeError`."""
+
+    NotPrepared = "Neither prepared node nor input node"
+    AlreadyUsed = "Node already used"
+    AlreadyMeasured = "Node already measured"
+
+
+@dataclass(frozen=True)
+class InvalidNodeError(Exception):
+    """Exception raised if a node is used in a command that would make the pattern ill-formed (i.e., not runnable or unsupported)."""
+
+    node: int
+    reason: InvalidNodeReason
+
+    def __str__(self) -> str:
+        """Return the message of the error."""
+        return f"{self.reason}: {self.node}"
+
+
+T = TypeVar("T")
+
+
+def find_duplicates(lst: list[T]) -> set[T]:
+    seen = set()
+    duplicates = set()
+    for item in lst:
+        if item in seen:
+            duplicates.add(item)
+        else:
+            seen.add(item)
+    return duplicates
 
 
 class Pattern:
@@ -84,11 +127,14 @@ class Pattern:
         """
         if input_nodes is None:
             input_nodes = []
+        elif duplicates := find_duplicates(input_nodes):
+            raise DuplicatedInputNodesError(duplicates)
         self.results = {}  # measurement results from the graph state simulator
         self.__input_nodes = list(input_nodes)  # input nodes (list() makes our own copy of the list)
         self.__n_node = len(input_nodes)  # total number of nodes in the graph state
         self._pauli_preprocessed = False  # flag for `measure_pauli` preprocessing completion
-
+        self.__nodes = set(input_nodes)
+        self.__edges = set()
         self.__seq: list[Command] = []
         # output nodes are initially input nodes, since none are measured yet
         self.__output_nodes = list(input_nodes)
@@ -104,13 +150,30 @@ class Pattern:
             MBQC command.
         """
         if cmd.kind == CommandKind.N:
-            if cmd.node in self.__output_nodes:
-                raise NodeAlreadyPreparedError(cmd.node)
+            if cmd.node in self.__nodes:
+                raise InvalidNodeError(node=cmd.node, reason=InvalidNodeReason.AlreadyUsed)
             self.__n_node += 1
             self.__output_nodes.append(cmd.node)
+            self.__nodes.add(cmd.node)
+        elif cmd.kind == CommandKind.E:
+            u, v = cmd.nodes
+            edge = frozenset((u, v))
+            if edge in self.__edges:
+                raise AlreadyEntangledNodesError((u, v))
+            self.check_available(u)
+            self.check_available(v)
+            self.__edges.add(edge)
         elif cmd.kind == CommandKind.M:
+            self.check_available(cmd.node)
             self.__output_nodes.remove(cmd.node)
         self.__seq.append(cmd)
+
+    def check_available(self, node: int) -> None:
+        """Check that a node is available (prepared or input and not measured yet)."""
+        if node not in self.__nodes:
+            raise InvalidNodeError(node=node, reason=InvalidNodeReason.NotPrepared)
+        if node not in self.__output_nodes:
+            raise InvalidNodeError(node=node, reason=InvalidNodeReason.AlreadyMeasured)
 
     def extend(self, cmds: list[Command]) -> None:
         """Add a list of commands.
@@ -125,6 +188,8 @@ class Pattern:
         self.__n_node = len(self.__input_nodes)
         self.__seq = []
         self.__output_nodes = list(self.__input_nodes)
+        self.__nodes = set(self.__input_nodes)
+        self.__edges = set()
 
     def replace(self, cmds: list[Command], input_nodes=None) -> None:
         """Replace pattern with a given sequence of pattern commands.
@@ -257,7 +322,7 @@ class Pattern:
                 f"{len(self.__seq) - lim} more commands truncated. Change lim argument of print_pattern() to show more"
             )
 
-    def standardize(self, method: str="direct") -> None:
+    def standardize(self, method: str = "direct") -> None:
         """Execute standardization of the pattern.
 
         'standard' pattern is one where commands are sorted in the order of
@@ -1046,16 +1111,7 @@ class Pattern:
         edge_list : list
             list of tuples (i,j) specifying edges
         """
-        # We rely on the fact that self.input_nodes returns a copy:
-        # self.input_nodes is equivalent to list(self.__input_nodes)
-        node_list, edge_list = self.input_nodes, []
-        for cmd in self.__seq:
-            if cmd.kind == CommandKind.N:
-                assert cmd.node not in node_list
-                node_list.append(cmd.node)
-            elif cmd.kind == CommandKind.E:
-                edge_list.append(cmd.nodes)
-        return node_list, edge_list
+        return list(self.__nodes), [(u, v) for u, v in self.__edges]
 
     def get_isolated_nodes(self):
         """Get isolated nodes.
@@ -1254,7 +1310,9 @@ class Pattern:
                 n_list.append(nodes)
         return n_list
 
-    def simulate_pattern(self, backend: str | Backend="statevector", input_state: Data=BasicStates.PLUS, **kwargs) -> State:
+    def simulate_pattern(
+        self, backend: str | Backend = "statevector", input_state: Data = BasicStates.PLUS, **kwargs
+    ) -> State:
         """Simulate the execution of the pattern by using :class:`graphix.simulator.PatternSimulator`.
 
         Available backend: ['statevector', 'densitymatrix', 'tensornetwork']

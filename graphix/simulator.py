@@ -14,7 +14,7 @@ import numpy as np
 
 from graphix import command
 from graphix.clifford import Clifford
-from graphix.command import BaseN, BaseM, CommandKind, MeasureUpdate
+from graphix.command import BaseM, BaseN, CommandKind, MeasureUpdate
 from graphix.measurements import Measurement
 from graphix.sim.base_backend import Backend
 from graphix.sim.density_matrix import DensityMatrixBackend
@@ -84,7 +84,7 @@ class MeasureMethod(abc.ABC):
 class DefaultMeasureMethod(MeasureMethod):
     """Default measurement method implementing standard measurement plane/angle update for MBQC."""
 
-    def __init__(self, results: dict[int, bool]=None) -> None:
+    def __init__(self, results: dict[int, bool] = None) -> None:
         if results is None:
             results = {}
         self.results = results
@@ -116,7 +116,13 @@ class PatternSimulator:
     """
 
     def __init__(
-        self, pattern, backend="statevector", prepare_method: PrepareMethod | None = None, measure_method: MeasureMethod | None = None, noise_model=None, **kwargs
+        self,
+        pattern,
+        backend="statevector",
+        prepare_method: PrepareMethod | None = None,
+        measure_method: MeasureMethod | None = None,
+        noise_model=None,
+        **kwargs,
     ) -> None:
         """
         Construct a pattern simulator.
@@ -205,9 +211,7 @@ class PatternSimulator:
                 if self.noise_model is not None:
                     result = self.noise_model.confuse_result(result)
                 self.__measure_method.set_measure_result(cmd.node, result)
-            elif cmd.kind == CommandKind.X:
-                self.backend.correct_byproduct(cmd, self.__measure_method)
-            elif cmd.kind == CommandKind.Z:
+            elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:
                 self.backend.correct_byproduct(cmd, self.__measure_method)
             elif cmd.kind == CommandKind.C:
                 self.backend.apply_clifford(cmd.node, cmd.clifford)
