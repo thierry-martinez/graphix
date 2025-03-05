@@ -33,7 +33,7 @@ from graphix.states import BasicStates
 from graphix.visualization import GraphVisualizer
 
 if typing_extensions.TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
 
     import PIL.Image.Image
 
@@ -182,7 +182,7 @@ class Pattern:
         if node not in self.__output_nodes:
             raise InvalidNodeError(node=node, reason=InvalidNodeReason.AlreadyMeasured)
 
-    def extend(self, cmds: list[Command]) -> None:
+    def extend(self, cmds: Iterable[Command]) -> None:
         """Add a list of commands.
 
         :param cmds: list of commands
