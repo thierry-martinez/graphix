@@ -13,14 +13,13 @@ from collections.abc import Iterable
 import numpy as np
 
 from graphix import linalg_validations as lv
-from graphix import states
 from graphix.channels import KrausChannel
-from graphix.sim.base_backend import Backend, State
+from graphix.sim.base_backend import Backend, BackendState
 from graphix.sim.statevec import CNOT_TENSOR, CZ_TENSOR, SWAP_TENSOR, Statevec
-from graphix.states import BasicStates
+from graphix.states import BasicStates, State
 
 
-class DensityMatrix(State):
+class DensityMatrix(BackendState):
     """DensityMatrix object."""
 
     def __init__(
@@ -363,10 +362,10 @@ class DensityMatrixBackend(Backend):
 
 if sys.version_info >= (3, 10):
     Data = (
-        states.State
+        State
         | DensityMatrix
         | Statevec
-        | Iterable[states.State]
+        | Iterable[State]
         | Iterable[numbers.Number]
         | Iterable[Iterable[numbers.Number]]
     )
@@ -374,10 +373,10 @@ else:
     from typing import Union
 
     Data = Union[
-        states.State,
+        State,
         DensityMatrix,
         Statevec,
-        Iterable[states.State],
+        Iterable[State],
         Iterable[numbers.Number],
         Iterable[Iterable[numbers.Number]],
     ]

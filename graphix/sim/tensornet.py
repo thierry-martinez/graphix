@@ -13,7 +13,7 @@ from quimb.tensor import Tensor, TensorNetwork
 from graphix import command
 from graphix.ops import Ops
 from graphix.rng import ensure_rng
-from graphix.sim.base_backend import Backend, State
+from graphix.sim.base_backend import Backend, BackendState
 from graphix.states import BasicStates, PlanarState
 
 if TYPE_CHECKING:
@@ -215,7 +215,7 @@ class TensorNetworkBackend(Backend):
         raise NotImplementedError("Cannot apply a channel to a tensor network backend.")
 
 
-class MBQCTensorNet(State, TensorNetwork):
+class MBQCTensorNet(BackendState, TensorNetwork):
     """Tensor Network Simulator interface for MBQC patterns, using quimb.tensor.core.TensorNetwork."""
 
     def __init__(

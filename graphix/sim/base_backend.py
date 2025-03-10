@@ -84,7 +84,7 @@ class NodeIndex:
         self.__dict[node_j] = i
 
 
-class State:
+class BackendState:
     """Base class for backend state."""
 
 
@@ -245,7 +245,7 @@ class Backend:
 
     def __init__(
         self,
-        state: State,
+        state: BackendState,
         node_index: NodeIndex | None = None,
         branch_selector: BranchSelector | None = None,
         pr_calc: bool | None = None,
@@ -260,7 +260,7 @@ class Backend:
                 if False, measurements yield results 0/1 with 50% probabilities each.
             node_index : NodeIndex
                 mapping between node numbers and qubit indices in the internal state of the backend.
-            state : State
+            state : BackendState
                 internal state of the backend: instance of Statevec, DensityMatrix, or MBQCTensorNet.
 
         """
@@ -289,7 +289,7 @@ class Backend:
         return self.__rng
 
     @property
-    def state(self) -> State:
+    def state(self) -> BackendState:
         """Return the state of the backend."""
         return self.__state
 

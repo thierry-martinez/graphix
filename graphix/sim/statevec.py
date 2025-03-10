@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import numpy.typing as npt
 
-from graphix import states, utils
-from graphix.sim.base_backend import Backend, State
-from graphix.states import BasicStates
+from graphix import utils
+from graphix.sim.base_backend import Backend, BackendState
+from graphix.states import BasicStates, State
 
 if TYPE_CHECKING:
     import collections
@@ -55,7 +55,7 @@ SWAP_TENSOR = np.array(
 )
 
 
-class Statevec(State):
+class Statevec(BackendState):
     """Statevector object."""
 
     def __init__(
@@ -95,7 +95,7 @@ class Statevec(State):
             self.psi = data.psi.copy()
             return
 
-        if isinstance(data, states.State):
+        if isinstance(data, State):
             if nqubit is None:
                 nqubit = 1
             input_list = [data] * nqubit
@@ -110,8 +110,8 @@ class Statevec(State):
 
             self.psi = np.array(1, dtype=np.complex128)
 
-        elif isinstance(input_list[0], states.State):
-            utils.check_list_elements(input_list, states.State)
+        elif isinstance(input_list[0], State):
+            utils.check_list_elements(input_list, State)
             if nqubit is None:
                 nqubit = len(input_list)
             elif nqubit != len(input_list):
@@ -371,14 +371,14 @@ def _get_statevec_norm(psi):
 if sys.version_info >= (3, 10):
     from collections.abc import Iterable
 
-    Data = states.State | Statevec | Iterable[states.State] | Iterable[numbers.Number]
+    Data = State | Statevec | Iterable[State] | Iterable[numbers.Number]
 else:
     from collections.abc import Iterable
     from typing import Union
 
     Data = Union[
-        states.State,
+        State,
         Statevec,
-        Iterable[states.State],
+        Iterable[State],
         Iterable[numbers.Number],
     ]
