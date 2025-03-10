@@ -355,6 +355,10 @@ class DensityMatrixBackend(Backend):
         indices = [self.node_index.index(i) for i in qargs]
         self.state.apply_channel(channel, indices)
 
+    def apply_noise(self, nodes: list[int], noise: Noise) -> None:
+        """Apply noise."""
+        channel = noise.to_kraus_channel()
+        self.apply_channel(channel, nodes)
 
 if sys.version_info >= (3, 10):
     Data = (

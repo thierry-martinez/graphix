@@ -163,6 +163,7 @@ class CommandKind(Enum):
     Z = enum.auto()
     S = enum.auto()
     T = enum.auto()
+    A = enum.auto()  # see noise_models/noise_model.py
 
 
 class _KindChecker:
@@ -262,6 +263,7 @@ class T(_KindChecker):
 
     kind: ClassVar[Literal[CommandKind.T]] = dataclasses.field(default=CommandKind.T, init=False)
 
+BaseM = M
 
 if sys.version_info >= (3, 10):
     Command = N | M | E | C | X | Z | S | T
@@ -269,8 +271,6 @@ if sys.version_info >= (3, 10):
 else:
     Command = Union[N, M, E, C, X, Z, S, T]
     Correction = Union[X, Z]
-
-BaseM = M
 
 
 @dataclasses.dataclass

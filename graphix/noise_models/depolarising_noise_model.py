@@ -9,7 +9,7 @@ import typing_extensions
 
 from graphix.channels import KrausChannel, depolarising_channel, two_qubit_depolarising_channel
 from graphix.command import Command, CommandKind
-from graphix.noise_models.noise_model import Noise, NoiseElement, NoiseModel
+from graphix.noise_models.noise_model import A, Noise, NoiseModel
 from graphix.rng import ensure_rng
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class DepolarisingNoiseElement(NoiseElement):
+class DepolarisingNoise(Noise):
     prob: float
 
     def nqubits(self) -> int:
@@ -30,7 +30,7 @@ class DepolarisingNoiseElement(NoiseElement):
 
 
 @dataclass
-class TwoQubitDepolarisingNoiseElement(NoiseElement):
+class TwoQubitDepolarisingNoise(Noise):
     prob: float
 
     def nqubits(self) -> int:
@@ -69,25 +69,25 @@ class DepolarisingNoiseModel(NoiseModel):
         self.measure_channel_prob = measure_channel_prob
         self.rng = ensure_rng(rng)
 
-    def input_nodes(self, nodes: list[int]) -> Noise:
+    def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
-        return [(DepolarisingNoiseElement(self.prepare_error_prob), [node]) for node in nodes]
+        return [A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[node]) for node in nodes]
 
-    def command(self, cmd: Command) -> Noise:
+    def command(self, cmd: CommandOrNoise) -> NoiseCommands:
         """Return the noise to apply to the command `cmd`."""
         kind = cmd.kind
         if kind == CommandKind.N:
-            return [(DepolarisingNoiseElement(self.prepare_error_prob), [cmd.node])]
+            return [cmd, A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[cmd.node])]
         if kind == CommandKind.E:
-            return [(TwoQubitDepolarisingNoiseElement(self.entanglement_error_prob), cmd.nodes)]
+            return [cmd, A(noise=TwoQubitDepolarisingNoise(self.entanglement_error_prob), nodes=cmd.nodes)]
         if kind == CommandKind.M:
-            return [(DepolarisingNoiseElement(self.measure_channel_prob), [cmd.node])]
+            return [A(noise=DepolarisingNoise(self.measure_channel_prob), nodes=[cmd.node]), cmd]
         if kind == CommandKind.X:
-            return [(DepolarisingNoiseElement(self.x_error_prob), [cmd.node])]
+            return [cmd, A(noise=DepolarisingNoise(self.x_error_prob), nodes=[cmd.node])]
         if kind == CommandKind.Z:
-            return [(DepolarisingNoiseElement(self.z_error_prob), [cmd.node])]
-        if kind == CommandKind.C or kind == CommandKind.T:
-            return []
+            return [cmd, A(noise=DepolarisingNoise(self.z_error_prob), nodes=[cmd.node])]
+        if kind == CommandKind.C or kind == CommandKind.T or kind == CommandKind.A:
+            return [cmd]
         typing_extensions.assert_never(kind)
 
     def confuse_result(self, result: bool) -> bool:

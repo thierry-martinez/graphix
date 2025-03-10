@@ -197,16 +197,17 @@ class PatternSimulator:
         """
         if input_state is not None:
             self.backend.add_nodes(self.pattern.input_nodes, input_state)
-            if self.noise_model is not None:
-                apply_noise(self.backend, self.noise_model.input_nodes(self.pattern.input_nodes))
-        for cmd in self.pattern:
+        if self.noise_model is None:
+            pattern = self.pattern
+        else:
+            pattern = self.noise_model.input_nodes(self.pattern.input_nodes) if input_state is not None else []
+            pattern.extend(self.noise_model.transpile(self.pattern))
+        for cmd in pattern:
             if cmd.kind == CommandKind.N:
                 self.__prepare_method.prepare(self.backend, cmd)
             elif cmd.kind == CommandKind.E:
                 self.backend.entangle_nodes(edge=cmd.nodes)
             elif cmd.kind == CommandKind.M:
-                if self.noise_model is not None:
-                    apply_noise(self.backend, self.noise_model.command(cmd))
                 result = self.__measure_method.measure(self.backend, cmd)
                 if self.noise_model is not None:
                     result = self.noise_model.confuse_result(result)
@@ -220,15 +221,9 @@ class PatternSimulator:
                 # to be added via hardware-agnostic pattern modifier
                 if self.noise_model is not None:
                     self.noise_model.tick_clock()
+            elif cmd.kind == CommandKind.A:
+                self.backend.apply_noise(cmd.nodes, cmd.noise)
             else:
                 raise ValueError("invalid commands")
-            if cmd.kind != CommandKind.M and self.noise_model is not None:
-                apply_noise(self.backend, self.noise_model.command(cmd))
         self.backend.finalize(output_nodes=self.pattern.output_nodes)
 
-
-def apply_noise(backend: Backend, noise: Noise) -> None:
-    """Apply a noise to the state of a backend."""
-    for element, qubits in noise:
-        channel = element.to_kraus_channel()
-        backend.apply_channel(channel, qubits)

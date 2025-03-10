@@ -353,6 +353,10 @@ class Backend:
         loc = self.node_index.index(node)
         self.state.evolve_single(clifford.matrix, loc)
 
+    def apply_noise(self, nodes: list[int], noise: Noise) -> None:
+        """Apply noise."""
+        raise ValueError("Noise not supported by this backend.")
+
     def sort_qubits(self, output_nodes) -> None:
         """Sort the qubit order in internal statevector."""
         for i, ind in enumerate(output_nodes):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix.noise_models.noise_model import Noise, NoiseModel
+from graphix.noise_models.noise_model import CommandOrNoise, NoiseCommands, NoiseModel
 
 if TYPE_CHECKING:
     from graphix.command import Command
@@ -16,13 +16,13 @@ class NoiselessNoiseModel(NoiseModel):
     Only return the identity channel.
     """
 
-    def input_nodes(self, nodes: list[int]) -> Noise:
+    def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
         return []
 
-    def command(self, cmd: Command) -> Noise:
+    def command(self, cmd: CommandOrNoise) -> NoiseCommands:
         """Return the noise to apply to the command `cmd`."""
-        return []
+        return [cmd]
 
     def confuse_result(self, result: bool) -> bool:
         """Assign wrong measurement result."""
