@@ -360,6 +360,7 @@ class DensityMatrixBackend(Backend):
         channel = noise.to_kraus_channel()
         self.apply_channel(channel, nodes)
 
+
 if sys.version_info >= (3, 10):
     Data = (
         states.State

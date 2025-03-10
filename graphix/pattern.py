@@ -12,7 +12,6 @@ import tempfile
 import warnings
 from copy import deepcopy
 from dataclasses import dataclass
-import enum
 from enum import Enum
 from pathlib import Path
 from typing import Literal, TypeVar

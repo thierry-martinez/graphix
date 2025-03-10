@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from graphix.noise_models.noise_model import CommandOrNoise, NoiseCommands, NoiseModel
-
-if TYPE_CHECKING:
-    from graphix.command import Command
 
 
 class NoiselessNoiseModel(NoiseModel):

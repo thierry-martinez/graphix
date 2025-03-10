@@ -23,7 +23,6 @@ from graphix.sim.tensornet import TensorNetworkBackend
 from graphix.states import BasicStates
 
 if TYPE_CHECKING:
-    from graphix.noise_models import Noise
     from graphix.pattern import Pattern
 
 
@@ -226,4 +225,3 @@ class PatternSimulator:
             else:
                 raise ValueError("invalid commands")
         self.backend.finalize(output_nodes=self.pattern.output_nodes)
-

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import typing_extensions
 
 from graphix.channels import KrausChannel, depolarising_channel, two_qubit_depolarising_channel
-from graphix.command import Command, CommandKind
+from graphix.command import CommandKind
 from graphix.noise_models.noise_model import A, Noise, NoiseModel
 from graphix.rng import ensure_rng
 

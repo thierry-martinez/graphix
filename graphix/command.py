@@ -263,6 +263,7 @@ class T(_KindChecker):
 
     kind: ClassVar[Literal[CommandKind.T]] = dataclasses.field(default=CommandKind.T, init=False)
 
+
 BaseM = M
 
 if sys.version_info >= (3, 10):

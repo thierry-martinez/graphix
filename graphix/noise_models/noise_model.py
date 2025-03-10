@@ -6,7 +6,7 @@ import dataclasses
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar, Literal, TYPE_CHECKING
+from typing import ClassVar, Literal
 
 from graphix.channels import KrausChannel
 from graphix.command import Command, CommandKind, Node, _KindChecker
@@ -57,7 +57,8 @@ class NoiseModel(ABC):
 
     def transpile(self, sequence: NoiseCommands) -> NoiseCommands:
         """Apply the noise to a sequence of commands and return the resulting sequence."""
-        return[n_cmd for cmd in sequence for n_cmd in self.command(cmd)]
+        return [n_cmd for cmd in sequence for n_cmd in self.command(cmd)]
+
 
 @dataclass(frozen=True)
 class ComposeNoiseModel(NoiseModel):
