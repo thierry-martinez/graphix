@@ -82,10 +82,8 @@ class InvalidNodeError(Exception):
         return f"{self.reason}: {self.node}"
 
 
-T = TypeVar("T")
 
-
-def find_duplicates(lst: list[T]) -> set[T]:
+def find_duplicates[T](lst: list[T]) -> set[T]:
     seen = set()
     duplicates = set()
     for item in lst:

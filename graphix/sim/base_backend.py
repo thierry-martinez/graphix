@@ -17,11 +17,13 @@ from graphix.states import BasicStates
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+    from typing import Callable
 
     from numpy.random import Generator
 
     from graphix.fundamentals import Plane
     from graphix.measurements import Measurement
+    from graphix.noise_models.noise_model import Noise
 
 
 class NodeIndex:
@@ -250,7 +252,7 @@ class Backend:
         branch_selector: BranchSelector | None = None,
         pr_calc: bool | None = None,
         rng: Generator | None = None,
-    ):
+    ) -> None:
         """Construct a backend.
 
         Parameters

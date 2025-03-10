@@ -83,10 +83,14 @@ class MeasureMethod(abc.ABC):
 class DefaultMeasureMethod(MeasureMethod):
     """Default measurement method implementing standard measurement plane/angle update for MBQC."""
 
-    def __init__(self, results: dict[int, bool] = None) -> None:
+    def __init__(self, results: dict[int, bool] | None = None) -> None:
         if results is None:
             results = {}
-        self.results = results
+        self.__results: dict[int, bool] = results
+
+    @property
+    def results(self) -> dict[int, bool]:
+        return self.__results
 
     def get_measurement_description(self, cmd: BaseM) -> Measurement:
         """Return the description of the measurement performed by a given measure command (cannot be blind in the case of DefaultMeasureMethod)."""
@@ -180,9 +184,6 @@ class PatternSimulator:
 
     def set_noise_model(self, model):
         """Set a noise model."""
-        if not isinstance(self.backend, DensityMatrixBackend) and model is not None:
-            self.noise_model = None  # if not initialized yet
-            raise ValueError(f"The backend {self.backend} doesn't support noise but noisemodel was provided.")
         self.noise_model = model
 
     def run(self, input_state=BasicStates.PLUS) -> None:

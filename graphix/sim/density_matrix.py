@@ -14,6 +14,7 @@ import numpy as np
 
 from graphix import linalg_validations as lv
 from graphix.channels import KrausChannel
+from graphix.noise_models.noise_model import Noise
 from graphix.sim.base_backend import Backend, BackendState
 from graphix.sim.statevec import CNOT_TENSOR, CZ_TENSOR, SWAP_TENSOR, Statevec
 from graphix.states import BasicStates, State
