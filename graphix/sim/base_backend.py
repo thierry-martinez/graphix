@@ -13,7 +13,7 @@ from graphix.clifford import Clifford
 from graphix.command import CommandKind
 from graphix.ops import Ops
 from graphix.rng import ensure_rng
-from graphix.states import BasicStates
+from graphix.states import BasicStates, State
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
