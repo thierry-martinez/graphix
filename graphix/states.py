@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import abc
 from abc import ABC
+from enum import Enum
 from typing import ClassVar
 
 import numpy as np
@@ -73,6 +74,19 @@ class PlanarState(State):
             return np.asarray([np.cos(self.angle / 2), np.sin(self.angle / 2)], dtype=np.complex128)
         # other case never happens since exhaustive
         typing_extensions.assert_never(self.plane)
+
+
+class BasicState(Enum):
+    ZERO = PlanarState(Plane.XZ, 0)
+    ONE = PlanarState(Plane.XZ, np.pi)
+    PLUS = PlanarState(Plane.XY, 0)
+    MINUS = PlanarState(Plane.XY, np.pi)
+    PLUS_I = PlanarState(Plane.XY, np.pi / 2)
+    MINUS_I = PlanarState(Plane.XY, -np.pi / 2)
+
+    @staticmethod
+    def try_from_statevector(sv: npt.NDArray[np.complex128]) -> BasicState | None:
+        return next((bs for bs in BasicState if np.all(bs.value.get_statevector(), sv)), None)
 
 
 # States namespace for input initialization.

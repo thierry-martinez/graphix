@@ -300,7 +300,7 @@ class Backend:
         """Return the node index table of the backend."""
         return self.__node_index
 
-    def add_nodes(self, nodes: Iterable[int], data: State=BasicStates.PLUS) -> None:
+    def add_nodes(self, nodes: Iterable[int], data: State = BasicStates.PLUS) -> None:
         """Add new qubit(s) to statevector in argument and assign the corresponding node number to list self.node_index.
 
         Parameters

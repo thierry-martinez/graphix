@@ -14,7 +14,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Literal, TypeVar
+from typing import Literal
 
 import networkx as nx
 import typing_extensions
@@ -36,7 +36,7 @@ if typing_extensions.TYPE_CHECKING:
 
     import PIL.Image.Image
 
-    from graphix.sim.base_backend import Backend, State
+    from graphix.sim.base_backend import Backend
     from graphix.sim.density_matrix import Data
 
 
@@ -80,7 +80,6 @@ class InvalidNodeError(Exception):
     def __str__(self) -> str:
         """Return the message of the error."""
         return f"{self.reason}: {self.node}"
-
 
 
 def find_duplicates[T](lst: list[T]) -> set[T]:
