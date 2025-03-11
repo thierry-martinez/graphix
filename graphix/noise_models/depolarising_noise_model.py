@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import typing_extensions
 
 from graphix.channels import KrausChannel, depolarising_channel, two_qubit_depolarising_channel
-from graphix.command import CommandKind
+from graphix.command import BaseM, CommandKind
 from graphix.noise_models.noise_model import A, Noise, NoiseModel
 from graphix.rng import ensure_rng
 
@@ -90,7 +90,7 @@ class DepolarisingNoiseModel(NoiseModel):
             return [cmd]
         typing_extensions.assert_never(kind)
 
-    def confuse_result(self, result: bool) -> bool:
+    def confuse_result(self, cmd: BaseM, result: bool) -> bool:
         """Assign wrong measurement result cmd = "M"."""
         if self.rng.uniform() < self.measure_error_prob:
             return not result

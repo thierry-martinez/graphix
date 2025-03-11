@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from graphix.command import BaseM
 from graphix.noise_models.noise_model import CommandOrNoise, NoiseCommands, NoiseModel
 
 
@@ -19,6 +20,6 @@ class NoiselessNoiseModel(NoiseModel):
         """Return the noise to apply to the command `cmd`."""
         return [cmd]
 
-    def confuse_result(self, result: bool) -> bool:
+    def confuse_result(self, cmd: BaseM, result: bool) -> bool:
         """Assign wrong measurement result."""
         return result

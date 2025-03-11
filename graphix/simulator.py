@@ -210,7 +210,7 @@ class PatternSimulator:
             elif cmd.kind == CommandKind.M:
                 result = self.__measure_method.measure(self.backend, cmd)
                 if self.noise_model is not None:
-                    result = self.noise_model.confuse_result(result)
+                    result = self.noise_model.confuse_result(cmd, result)
                 self.__measure_method.set_measure_result(cmd.node, result)
             elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:
                 self.backend.correct_byproduct(cmd, self.__measure_method)

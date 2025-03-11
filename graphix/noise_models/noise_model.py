@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Literal
 
 from graphix.channels import KrausChannel
-from graphix.command import Command, CommandKind, Node, _KindChecker
+from graphix.command import BaseM, Command, CommandKind, Node, _KindChecker
 
 
 class Noise(ABC):
@@ -52,7 +52,7 @@ class NoiseModel(ABC):
         """Return the noise to apply to the command `cmd`."""
 
     @abstractmethod
-    def confuse_result(self, result: bool) -> bool:
+    def confuse_result(self, cmd: BaseM, result: bool) -> bool:
         """Assign wrong measurement result."""
 
     def transpile(self, sequence: NoiseCommands) -> NoiseCommands:
@@ -77,8 +77,8 @@ class ComposeNoiseModel(NoiseModel):
             sequence = model.transpile(sequence)
         return sequence
 
-    def confuse_result(self, result: bool) -> bool:
+    def confuse_result(self, cmd: BaseM, result: bool) -> bool:
         """Assign wrong measurement result."""
         for m in self.l:
-            result = m.confuse_result(result)
+            result = m.confuse_result(cmd, result)
         return result
