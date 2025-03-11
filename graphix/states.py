@@ -86,7 +86,7 @@ class BasicState(Enum):
 
     @staticmethod
     def try_from_statevector(sv: npt.NDArray[np.complex128]) -> BasicState | None:
-        return next((bs for bs in BasicState if np.all(bs.value.get_statevector(), sv)), None)
+        return next((bs for bs in BasicState if np.all(bs.value.get_statevector() == sv)), None)
 
 
 # States namespace for input initialization.
