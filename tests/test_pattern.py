@@ -105,6 +105,20 @@ class TestPattern:
         with pytest.raises(InvalidNodeError):
             pattern.add(E(nodes=(0, 1)))
 
+    def test_nodes(self) -> None:
+        pattern = Pattern()
+        pattern.add(N(node=0))
+        pattern.add(N(node=1))
+        pattern.add(M(node=0))
+        assert pattern.nodes == {0, 1}
+
+    def test_edges(self) -> None:
+        pattern = Pattern()
+        pattern.add(N(node=0))
+        pattern.add(N(node=1))
+        pattern.add(E(nodes=(0, 1)))
+        assert pattern.edges == {frozenset([0, 1])}
+
     def test_standardize(self, fx_rng: Generator) -> None:
         nqubits = 2
         depth = 1

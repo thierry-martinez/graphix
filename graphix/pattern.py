@@ -216,6 +216,14 @@ class Pattern:
         """List all nodes that are either `input_nodes` or prepared with `N` commands and that have not been measured with an `M` command."""
         return list(self.__output_nodes)  # copy for preventing modification
 
+    @property
+    def nodes(self) -> frozenset[int]:
+        return frozenset(self.__nodes)
+
+    @property
+    def edges(self) -> frozenset[frozenset[int]]:
+        return frozenset(self.__edges)
+
     def __len__(self) -> int:
         """Return the length of command sequence."""
         return len(self.__seq)
