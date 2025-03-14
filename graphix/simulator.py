@@ -90,6 +90,7 @@ class DefaultMeasureMethod(MeasureMethod):
 
     @property
     def results(self) -> dict[int, bool]:
+        """Return measurement results."""
         return self.__results
 
     def get_measurement_description(self, cmd: BaseM) -> Measurement:
@@ -212,7 +213,8 @@ class PatternSimulator:
                 if self.noise_model is not None:
                     result = self.noise_model.confuse_result(cmd, result)
                 self.__measure_method.set_measure_result(cmd.node, result)
-            elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:
+            # Use of `==` here for mypy
+            elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:  # noqa: PLR1714
                 self.backend.correct_byproduct(cmd, self.__measure_method)
             elif cmd.kind == CommandKind.C:
                 self.backend.apply_clifford(cmd.node, cmd.clifford)

@@ -14,7 +14,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 import networkx as nx
 import typing_extensions
@@ -36,7 +36,7 @@ if typing_extensions.TYPE_CHECKING:
 
     import PIL.Image.Image
 
-    from graphix.sim.base_backend import Backend
+    from graphix.sim.base_backend import Backend, BackendState
     from graphix.sim.density_matrix import Data
 
 
@@ -82,7 +82,11 @@ class InvalidNodeError(Exception):
         return f"{self.reason}: {self.node}"
 
 
-def find_duplicates[T](lst: list[T]) -> set[T]:
+_T = TypeVar("_T")
+
+
+def find_duplicates(lst: list[_T]) -> set[_T]:
+    """Return the elements that appear multiple times in the list."""
     seen = set()
     duplicates = set()
     for item in lst:
@@ -218,10 +222,12 @@ class Pattern:
 
     @property
     def nodes(self) -> frozenset[int]:
+        """Return the set of nodes of the graph state."""
         return frozenset(self.__nodes)
 
     @property
     def edges(self) -> frozenset[frozenset[int]]:
+        """Return the set of edges of the graph state."""
         return frozenset(self.__edges)
 
     def __len__(self) -> int:

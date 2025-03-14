@@ -6,13 +6,17 @@ import dataclasses
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
-from graphix.channels import KrausChannel
 from graphix.command import BaseM, Command, CommandKind, Node, _KindChecker
+
+if TYPE_CHECKING:
+    from graphix.channels import KrausChannel
 
 
 class Noise(ABC):
+    """Abstract base class for noise."""
+
     @abstractmethod
     def nqubits(self) -> int:
         """Return the number of qubits targetted by the noise."""
@@ -24,7 +28,7 @@ class Noise(ABC):
 
 @dataclass
 class A(_KindChecker):
-    """Apply noise command"""
+    """Apply noise command."""
 
     kind: ClassVar[Literal[CommandKind.A]] = dataclasses.field(default=CommandKind.A, init=False)
     noise: Noise
@@ -34,6 +38,8 @@ class A(_KindChecker):
 if sys.version_info >= (3, 10):
     CommandOrNoise = Command | A
 else:
+    from typing import Union
+
     CommandOrNoise = Union[Command, A]
 
 

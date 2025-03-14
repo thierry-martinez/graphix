@@ -9,4 +9,4 @@ def test_try_from_statevector(bs: BasicState):
 
 
 def test_try_from_statevector_fail():
-    assert BasicState.try_from_statevector([0.1, 0.1]) == None
+    assert BasicState.try_from_statevector([0.1, 0.1]) is None

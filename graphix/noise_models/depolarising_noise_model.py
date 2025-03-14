@@ -9,7 +9,7 @@ import typing_extensions
 
 from graphix.channels import KrausChannel, depolarising_channel, two_qubit_depolarising_channel
 from graphix.command import BaseM, CommandKind
-from graphix.noise_models.noise_model import A, Noise, NoiseModel
+from graphix.noise_models.noise_model import A, CommandOrNoise, Noise, NoiseCommands, NoiseModel
 from graphix.rng import ensure_rng
 
 if TYPE_CHECKING:
@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 @dataclass
 class DepolarisingNoise(Noise):
+    """One-qubit depolarising noise with probabibity `prob`."""
+
     prob: float
 
     def nqubits(self) -> int:
@@ -31,6 +33,8 @@ class DepolarisingNoise(Noise):
 
 @dataclass
 class TwoQubitDepolarisingNoise(Noise):
+    """Two-qubits depolarising noise with probabibity `prob`."""
+
     prob: float
 
     def nqubits(self) -> int:
@@ -86,7 +90,8 @@ class DepolarisingNoiseModel(NoiseModel):
             return [cmd, A(noise=DepolarisingNoise(self.x_error_prob), nodes=[cmd.node])]
         if kind == CommandKind.Z:
             return [cmd, A(noise=DepolarisingNoise(self.z_error_prob), nodes=[cmd.node])]
-        if kind == CommandKind.C or kind == CommandKind.T or kind == CommandKind.A:
+        # Use of `==` here for mypy
+        if kind == CommandKind.C or kind == CommandKind.T or kind == CommandKind.A:  # noqa: PLR1714
             return [cmd]
         typing_extensions.assert_never(kind)
 

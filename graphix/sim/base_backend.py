@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -16,7 +15,7 @@ from graphix.rng import ensure_rng
 from graphix.states import BasicStates, State
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable, Iterator, Mapping
     from typing import Callable
 
     from numpy.random import Generator
@@ -117,10 +116,7 @@ def perform_measure(
         return state.expectation_single(get_op_mat_0(), qubit_loc)
 
     result = selector.measure(qubit_node, compute_expectation_0)
-    if result:
-        op_mat = _op_mat_from_result(vec, True)
-    else:
-        op_mat = get_op_mat_0()
+    op_mat = _op_mat_from_result(vec, True) if result else get_op_mat_0()
     state.evolve_single(op_mat, qubit_loc)
     return result
 
@@ -236,9 +232,7 @@ class ConstBranchSelector(BranchSelector):
     result: bool
 
     def measure(self, qubit: int, compute_expectation_0: Callable[[], float]) -> bool:
-        """
-        Return the constant measurement outcome `result` for any qubit.
-        """
+        """Return the constant measurement outcome `result` for any qubit."""
         return self.result
 
 

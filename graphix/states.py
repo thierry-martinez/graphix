@@ -77,6 +77,8 @@ class PlanarState(State):
 
 
 class BasicState(Enum):
+    """Enumeration for basic states."""
+
     ZERO = PlanarState(Plane.XZ, 0)
     ONE = PlanarState(Plane.XZ, np.pi)
     PLUS = PlanarState(Plane.XY, 0)
@@ -86,6 +88,7 @@ class BasicState(Enum):
 
     @staticmethod
     def try_from_statevector(sv: npt.NDArray[np.complex128]) -> BasicState | None:
+        """Return the BasicState corresponding to the parameter, or not if it is not a basic state."""
         return next((bs for bs in BasicState if np.all(bs.value.get_statevector() == sv)), None)
 
 
