@@ -1,6 +1,7 @@
 import numpy as np
 import graphix
 import cProfile, pstats, io
+import sys
 
 from graphix.sim.density_matrix import DensityMatrix, RustDensityMatrix
 from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
@@ -117,11 +118,12 @@ def benchmark_by_simulation_size(ncircuits=20, max_nqubits=10, circuit_depth=2, 
     return times
 
 if __name__ == "__main__":
+    nqubits = int(sys.argv[1]) if len(sys.argv) > 1 else 2
     ts = TimeSuite()
-
+    
     noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.5)
 
-    ts.setup(10, 8, 2, noise_model=noise_model)
+    ts.setup(10, nqubits, 2, noise_model=noise_model)
     ts.test_consistency()
 
     np = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
