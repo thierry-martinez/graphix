@@ -496,7 +496,7 @@ class RustDensityMatrix(State):
         """normalize density matrix"""
         dm_simu_rs.normalize(self.rho)
 
-    def apply_channel(self, channel: KrausChannel, qargs):
+    def apply_channel(self, channel: KrausChannel, qargs) -> None:
         """Applies a channel to a density matrix.
 
         Parameters
@@ -517,6 +517,9 @@ class RustDensityMatrix(State):
             This shouldn't happen since :class:`graphix.channel.KrausChannel` objects are normalized by construction.
         ....
         """
+        if not isinstance(channel, KrausChannel):
+            raise TypeError(f"Wrong channel passed. Got {type(KrausChannel)}, expected KraussChannel.")
+
         channel = [
             (complex(data.coef), [complex(d) for d in data.operator.flatten()])
             for data in channel
