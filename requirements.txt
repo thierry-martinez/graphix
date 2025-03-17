@@ -12,3 +12,4 @@ scipy
 sympy>=1.9
 typing_extensions
 maturin
+dm-simu-rs @ git+https://github.com/benjvmin93/dm-simu-rs.git
