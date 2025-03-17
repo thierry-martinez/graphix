@@ -585,7 +585,7 @@ class RustDensityMatrix(State):
             raise ValueError("op must be 2x2 matrix.")
 
         op_rs = dm_simu_rs.new_op(op.flatten())
-        result = dm_simu_rs.expectation_single(self.rho, op_rs, i).real
+        result = dm_simu_rs.expectation_single(self.rho, op_rs, i)
         return result
 
     
