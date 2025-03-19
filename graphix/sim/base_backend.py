@@ -330,6 +330,19 @@ class Backend:
         self.state.remove_qubit(loc)
         return result
 
+    def estimate(self, node: int, measurement: Measurement) -> float:
+        """Estimate the probability of measuring 0 on the given node.
+
+        Parameters
+        ----------
+        node: int
+        measurement: Measurement
+        """
+        loc = self.node_index.index(node)
+        vec = measurement.plane.polar(measurement.angle)
+        op_mat_0 = _op_mat_from_result(vec, False)
+        return self.state.expectation_single(op_mat_0, loc)
+
     def correct_byproduct(self, cmd, measure_method) -> None:
         """Byproduct correction correct for the X or Z byproduct operators, by applying the X or Z gate."""
         if np.mod(sum([measure_method.get_measure_result(j) for j in cmd.domain]), 2) == 1:
