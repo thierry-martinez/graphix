@@ -1,0 +1,8 @@
+name: graphix-rs
+channels:
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+dependencies:
+  - python=3.9
+  - conda-forge::rust=1.85
+prefix: /home/benjamin/miniconda3/envs/graphix-rs
