@@ -586,7 +586,7 @@ class RustDensityMatrix(State):
 
         op_rs = dm_simu_rs.new_op(op.flatten())
         result = dm_simu_rs.expectation_single(self.rho, op_rs, i)
-        return result
+        return result.real
 
     
     def ptrace(self, qargs):
