@@ -118,13 +118,14 @@ def benchmark_by_simulation_size(ncircuits=20, max_nqubits=10, circuit_depth=2, 
     return times
 
 if __name__ == "__main__":
-    nqubits = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+    # TODO: add arguments --nqubits, --npatterns --depth
+    nqubits = int(sys.argv[1]) if len(sys.argv) > 1 else 2  # By default, if no integer argument is passed, set the number of qubits to 2
     ts = TimeSuite()
     
     noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.5)
 
     ts.setup(10, nqubits, 2, noise_model=noise_model)
-    # ts.test_consistency()
+    # ts.test_consistency() # We could keep test_consistency here, but it would make it really long to run for big simulations
 
     np = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
     print(np)
