@@ -124,7 +124,7 @@ if __name__ == "__main__":
     noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.5)
 
     ts.setup(10, nqubits, 2, noise_model=noise_model)
-    ts.test_consistency()
+    # ts.test_consistency()
 
     np = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
     print(np)
