@@ -2,6 +2,7 @@ import numpy as np
 import graphix
 import cProfile, pstats, io
 import sys
+import argparse
 
 from graphix.sim.density_matrix import DensityMatrix, RustDensityMatrix
 from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
@@ -56,9 +57,8 @@ class TimeSuite:
             np.testing.assert_almost_equal(numpy_result, rust_result, decimal=2)
 
     def time_impl(self, impl):
-        print(f"Running {self.patterns[0].n_node} nodes patterns for {impl}")
+        print(f"Benchmarkin {impl}")
         for pattern in self.patterns:
-            print(".", end="")
             pattern.simulate_pattern(backend="densitymatrix", impl=impl, noise_model=self.noise_model)
         print()
 
@@ -80,52 +80,30 @@ def benchmark(ts, impl, identifier):
     
     return profiling_output
 
-def parse_tot_time(profiling_output):
-    """
-    Parse the total elapsed time from the profiling output string.
-    """
-    # Extract the total time from the profiling stats
-    total_time_line = next(
-        (line for line in profiling_output.splitlines() if "function calls" in line), None
-    )
-    total_time = None
-    if total_time_line:
-        total_time = float(total_time_line.split()[-2])  # Get the time in seconds
-
-    return total_time
-
-def benchmark_by_simulation_size(ncircuits=20, max_nqubits=10, circuit_depth=2, noise_model=None):
-    times = []  # Elapsed simulation times according to the number of qubits of the circuits.
-    ts = TimeSuite()
-    for nqubit in range(1, max_nqubits + 1):   # For each number of qubits, create n Circuits and benchmark the two backends to compare their performance.
-        ts.setup(ncircuits, nqubit, circuit_depth, noise_model=noise_model)
-
-        ts.test_consistency()   # Ensure we get the same results.
-
-        graphix_bench_output = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
-        rs_bench_output = benchmark(ts, impl=RustDensityMatrix, identifier="dm_simu_rs|density_matrix")
-
-        print(f"Benchmark with {nqubit} qubits graphix:\n{graphix_bench_output}")
-        print(f"Benchmark with {nqubit} qubits rs:\n{rs_bench_output}")
-        print("========================================================")
-
-        graphix_tot_time = parse_tot_time(graphix_bench_output) / ncircuits
-        rs_tot_time = parse_tot_time(rs_bench_output) / ncircuits
-
-        # Append total times as a tuple of (graphix_tot_time, rs_total_time)
-        times.append((graphix_tot_time, rs_tot_time))
-
-    return times
-
 if __name__ == "__main__":
-    # TODO: add arguments --nqubits, --npatterns --depth
-    nqubits = int(sys.argv[1]) if len(sys.argv) > 1 else 2  # By default, if no integer argument is passed, set the number of qubits to 2
+    parser = argparse.ArgumentParser(description="Graphix rust density matrix back-end benchmark")
+
+    parser.add_argument("--nqubits", help="Maximum number of qubits for the benchmark", default=2, required=False)
+    parser.add_argument("--ncircuits", help="Number of simulations to perform to get a mean of the runtime", default=10, required=False)
+    parser.add_argument("--depth", help="Depth of the circuits that will be transpiled to MBQC patterns", default=2, required=False)
+    parser.add_argument("--check-consistency", help="Whether or not check for consistent results between the two implementations. This will take more time to run the benchmark.", action="store_true", required=False)
+
+    args = parser.parse_args()
+
+    nqubits = int(args.nqubits)
+    ncircuits = int(args.ncircuits)
+    depth = int(args.depth)
+    check_consistency = args.check_consistency
+
+    print(f"========== Running benchmark with parameters with: max-nqubits={nqubits}, ncircuits={ncircuits}, depth={depth}, check-consistency={check_consistency} ==========")
+    
     ts = TimeSuite()
     
     noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.5)
+    ts.setup(ncircuits=ncircuits, nqubits=nqubits, depth=depth, noise_model=noise_model)
 
-    ts.setup(10, nqubits, 2, noise_model=noise_model)
-    # ts.test_consistency() # We could keep test_consistency here, but it would make it really long to run for big simulations
+    if check_consistency:
+        ts.test_consistency()
 
     np = benchmark(ts, impl=DensityMatrix, identifier="density_matrix")
     print(np)
