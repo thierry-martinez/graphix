@@ -4,6 +4,7 @@ import cProfile, pstats, io
 import sys
 import argparse
 
+import typer
 from graphix.sim.density_matrix import DensityMatrix, RustDensityMatrix
 from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
 
@@ -80,20 +81,7 @@ def benchmark(ts, impl, identifier):
     
     return profiling_output
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Graphix rust density matrix back-end benchmark")
-
-    parser.add_argument("--nqubits", help="Maximum number of qubits for the benchmark", default=2, required=False)
-    parser.add_argument("--ncircuits", help="Number of simulations to perform to get a mean of the runtime", default=10, required=False)
-    parser.add_argument("--depth", help="Depth of the circuits that will be transpiled to MBQC patterns", default=2, required=False)
-    parser.add_argument("--check-consistency", help="Whether or not check for consistent results between the two implementations. This will take more time to run the benchmark.", action="store_true", required=False)
-
-    args = parser.parse_args()
-
-    nqubits = int(args.nqubits)
-    ncircuits = int(args.ncircuits)
-    depth = int(args.depth)
-    check_consistency = args.check_consistency
+def main(nqubits: int = 2, ncircuits: int = 10, depth: int = 2, check_consistency: bool = False) -> None:
 
     print(f"========== Running benchmark with parameters with: max-nqubits={nqubits}, ncircuits={ncircuits}, depth={depth}, check-consistency={check_consistency} ==========")
     
@@ -109,3 +97,20 @@ if __name__ == "__main__":
     print(np)
     rs = benchmark(ts, impl=RustDensityMatrix, identifier="dm_simu_rs|density_matrix")
     print(rs)
+
+if __name__ == "__main__":
+    typer.run(main)
+
+    #parser = argparse.ArgumentParser(description="Graphix rust density matrix back-end benchmark")
+    #
+    #parser.add_argument("--nqubits", type=int, help="Maximum number of qubits for the benchmark", default=2, required=False)
+    #parser.add_argument("--ncircuits", type=int, help="Number of simulations to perform to get a mean of the runtime", default=10, required=False)
+    #parser.add_argument("--depth", type=int, help="Depth of the circuits that will be transpiled to MBQC patterns", default=2, required=False)
+    #parser.add_argument("--check-consistency", help="Whether or not check for consistent results between the two implementations. This will take more time to run the benchmark.", action="store_true", required=False)
+    #
+    #args = parser.parse_args()
+    #
+    #nqubits = args.nqubits
+    #ncircuits = args.ncircuits
+    #depth = args.depth
+    #check_consistency = args.check_consistency
