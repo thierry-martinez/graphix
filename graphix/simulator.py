@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import abc
 import warnings
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -47,6 +48,14 @@ class DefaultPrepareMethod(PrepareMethod):
     def prepare(self, backend: Backend, cmd: BaseN) -> None:
         """Prepare a node."""
         backend.add_nodes(nodes=[cmd.node], data=cmd.state)
+
+
+@dataclass
+class FixedPrepareMethod(PrepareMethod):
+    states: dict[int, State]
+
+    def prepare(self, backend: Backend, cmd: BaseN) -> None:
+        backend.add_nodes(nodes=[cmd.node], data=self.states[cmd.node])
 
 
 class MeasureMethod(abc.ABC):
