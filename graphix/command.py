@@ -74,7 +74,9 @@ def command_to_latex(cmd: Command) -> str:
         elif isinstance(cmd, (X, Z, S)):
             out.append(f"_{{{node}}}")
             if cmd.domain != set():
-                out.append(f"^{{{''.join([str(dom) for dom in cmd.domain])}}}")
+                out.append(f"^{{{','.join([str(dom) for dom in cmd.domain])}}}")
+        elif isinstance(cmd, (C)):
+            out.append(f"_{{{node}}}^{{{cmd.clifford}}}")
         else:
             out.append(f"_{{{node}}}")
 
