@@ -340,6 +340,70 @@ class Pattern:
 
         return _trim(PIL.Image.open(base.with_suffix(".png")))
 
+    def apply_results(self) -> Pattern:
+        result = Pattern(self.input_nodes)
+        def apply_results_in_domain(domain: set[int]) -> tuple[set[int], bool]:
+            new_set = set()
+            constant = False
+            for node in domain:
+                if node in self.results:
+                    constant ^= bool(self.results[node])
+                else:
+                    new_set.add(node)
+            return new_set, constant
+        for cmd in self:
+            if cmd.kind == CommandKind.M:
+                s_domain, constant = apply_results_in_domain(cmd.s_domain)
+                if constant:
+                    result.add(command.C(cmd.node, Clifford.X))
+                t_domain, constant = apply_results_in_domain(cmd.t_domain)
+                if constant:
+                    result.add(command.C(cmd.node, Clifford.Z))
+                new_cmd = command.M(node=cmd.node, plane=cmd.plane, angle=cmd.angle, s_domain=s_domain, t_domain=t_domain)
+                result.add(new_cmd)
+            elif cmd.kind == CommandKind.X:
+                domain, constant = apply_results_in_domain(cmd.domain)
+                if constant:
+                    result.add(command.C(cmd.node, Clifford.X))
+                if domain:
+                    result.add(command.X(node=cmd.node, domain=domain))
+            elif cmd.kind == CommandKind.Z:
+                domain, constant = apply_results_in_domain(cmd.domain)
+                if constant:
+                    new_seq.add(command.C(cmd.node, Clifford.Z))
+                if domain:
+                    result.add(command.Z(node=cmd.node, domain=domain))
+            else:
+                result.add(cmd)
+        return result
+
+    def renumber(self) -> Pattern:
+        node_count = len(self.input_nodes)
+        renumbering = { node: index for index, node in enumerate(self.input_nodes) }
+        result = Pattern(input_nodes = range(node_count))
+        def renumber_domain(domain: set[int]) -> set[int]:
+            return {renumbering[node] for node in domain}
+        for cmd in self:
+            if cmd.kind == CommandKind.N:
+                index = node_count
+                renumbering[cmd.node] = index
+                result.add(command.N(node=index, state=cmd.state))
+                node_count += 1
+            elif cmd.kind == CommandKind.E:
+                u, v = cmd.nodes
+                result.add(command.E(nodes=(renumbering[u], renumbering[v])))
+            elif cmd.kind == CommandKind.M:
+                result.add(command.M(node=renumbering[cmd.node], plane=cmd.plane, angle=cmd.angle, s_domain=renumber_domain(cmd.s_domain), t_domain=renumber_domain(cmd.t_domain)))
+            elif cmd.kind == CommandKind.X:
+                result.add(command.X(node=renumbering[cmd.node], domain=renumber_domain(cmd.domain)))
+            elif cmd.kind == CommandKind.Z:
+                result.add(command.Z(node=renumbering[cmd.node], domain=renumber_domain(cmd.domain)))
+            elif cmd.kind == CommandKind.C:
+                result.add(command.C(node=renumbering[cmd.node], clifford=cmd.clifford))
+            else:
+                raise ValueError(f"Unexpected command: {cmd}")
+        return result
+
     def to_latex(self, left_to_right: bool = True) -> str:
         """Return a string containing the latex representation of the pattern.
 
