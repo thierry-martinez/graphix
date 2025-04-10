@@ -52,10 +52,26 @@ class DefaultPrepareMethod(PrepareMethod):
 
 @dataclass
 class FixedPrepareMethod(PrepareMethod):
+    """
+    Prepare method where some nodes are prepared in states fixed by `states`.
+
+    Nodes that are not fixed by `states` are prepared with `default` if not `None`.
+    Otherwise, if `default` is `None`, an exception is raised if a node is not fixed.
+    """
+
     states: dict[int, State]
+    default: PrepareMethod | None = None
 
     def prepare(self, backend: Backend, cmd: BaseN) -> None:
-        backend.add_nodes(nodes=[cmd.node], data=self.states[cmd.node])
+        """Prepare a node."""
+        data = self.states.get(cmd.node)
+        if data is not None:
+            backend.add_nodes(nodes=[cmd.node], data=data)
+            return
+        if self.default is not None:
+            self.default.prepare(backend, cmd)
+            return
+        raise ValueError(f"Undefined preparation for {cmd.node}")
 
 
 class MeasureMethod(abc.ABC):

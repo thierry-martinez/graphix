@@ -341,7 +341,9 @@ class Pattern:
         return _trim(PIL.Image.open(base.with_suffix(".png")))
 
     def apply_results(self) -> Pattern:
+        """Apply corrections implied by Pauli presimulation results in pattern and remove measured Pauli nodes from domains."""
         result = Pattern(self.input_nodes)
+
         def apply_results_in_domain(domain: set[int]) -> tuple[set[int], bool]:
             new_set = set()
             constant = False
@@ -351,15 +353,18 @@ class Pattern:
                 else:
                     new_set.add(node)
             return new_set, constant
+
         for cmd in self:
             if cmd.kind == CommandKind.M:
-                s_domain, constant = apply_results_in_domain(cmd.s_domain)
-                if constant:
-                    result.add(command.C(cmd.node, Clifford.X))
-                t_domain, constant = apply_results_in_domain(cmd.t_domain)
-                if constant:
-                    result.add(command.C(cmd.node, Clifford.Z))
-                new_cmd = command.M(node=cmd.node, plane=cmd.plane, angle=cmd.angle, s_domain=s_domain, t_domain=t_domain)
+                s_domain, constant_x = apply_results_in_domain(cmd.s_domain)
+                t_domain, constant_z = apply_results_in_domain(cmd.t_domain)
+                new_cmd = command.M(
+                    node=cmd.node, plane=cmd.plane, angle=cmd.angle, s_domain=s_domain, t_domain=t_domain
+                )
+                if constant_x:
+                    new_cmd = new_cmd.clifford(Clifford.X)
+                if constant_z:
+                    new_cmd = new_cmd.clifford(Clifford.Z)
                 result.add(new_cmd)
             elif cmd.kind == CommandKind.X:
                 domain, constant = apply_results_in_domain(cmd.domain)
@@ -370,7 +375,7 @@ class Pattern:
             elif cmd.kind == CommandKind.Z:
                 domain, constant = apply_results_in_domain(cmd.domain)
                 if constant:
-                    new_seq.add(command.C(cmd.node, Clifford.Z))
+                    result.add(command.C(cmd.node, Clifford.Z))
                 if domain:
                     result.add(command.Z(node=cmd.node, domain=domain))
             else:
@@ -378,11 +383,14 @@ class Pattern:
         return result
 
     def renumber(self) -> Pattern:
+        """Renumber nodes such that the indices of input nodes and the indices of all nodes form initial ranges of integers."""
         node_count = len(self.input_nodes)
-        renumbering = { node: index for index, node in enumerate(self.input_nodes) }
-        result = Pattern(input_nodes = range(node_count))
+        renumbering = {node: index for index, node in enumerate(self.input_nodes)}
+        result = Pattern(input_nodes=range(node_count))
+
         def renumber_domain(domain: set[int]) -> set[int]:
             return {renumbering[node] for node in domain}
+
         for cmd in self:
             if cmd.kind == CommandKind.N:
                 index = node_count
@@ -393,7 +401,15 @@ class Pattern:
                 u, v = cmd.nodes
                 result.add(command.E(nodes=(renumbering[u], renumbering[v])))
             elif cmd.kind == CommandKind.M:
-                result.add(command.M(node=renumbering[cmd.node], plane=cmd.plane, angle=cmd.angle, s_domain=renumber_domain(cmd.s_domain), t_domain=renumber_domain(cmd.t_domain)))
+                result.add(
+                    command.M(
+                        node=renumbering[cmd.node],
+                        plane=cmd.plane,
+                        angle=cmd.angle,
+                        s_domain=renumber_domain(cmd.s_domain),
+                        t_domain=renumber_domain(cmd.t_domain),
+                    )
+                )
             elif cmd.kind == CommandKind.X:
                 result.add(command.X(node=renumbering[cmd.node], domain=renumber_domain(cmd.domain)))
             elif cmd.kind == CommandKind.Z:

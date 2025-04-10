@@ -91,6 +91,13 @@ class BasicState(Enum):
         """Return the BasicState corresponding to the parameter, or not if it is not a basic state."""
         return next((bs for bs in BasicState if np.all(bs.value.get_statevector() == sv)), None)
 
+    @staticmethod
+    def try_from_state(s: State) -> BasicState | None:
+        """Return the BasicState corresponding to the parameter, or not if it is not a basic state."""
+        if isinstance(s, PlanarState):
+            return next((bs for bs in BasicState if bs.value == s), None)
+        return BasicState.try_from_statevector(s.get_statevector())
+
 
 # States namespace for input initialization.
 class BasicStates:
