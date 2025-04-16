@@ -18,11 +18,14 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
     from typing import Callable
 
+    import numpy.typing as npt
     from numpy.random import Generator
 
+    from graphix import command
     from graphix.fundamentals import Plane
     from graphix.measurements import Measurement
     from graphix.noise_models.noise_model import Noise
+    from graphix.simulator import MeasureMethod
 
 
 class NodeIndex:
@@ -85,12 +88,17 @@ class NodeIndex:
         self.__dict[node_j] = i
 
 
-class BackendState:
+class BackendState(ABC):
     """Base class for backend state."""
 
+    @abstractmethod
+    def flatten(self) -> npt.NDArray[np.complex128]:
+        """Return flattened state."""
 
-def _op_mat_from_result(vec: tuple[float, float, float], result: bool) -> np.ndarray:
-    op_mat = np.eye(2, dtype=np.complex128) / 2
+
+def _op_mat_from_result(vec: tuple[float, float, float], result: bool, symbolic: bool = False) -> npt.NDArray:
+    dtype = "O" if symbolic else np.complex128
+    op_mat = np.eye(2, dtype=dtype) / 2
     sign = (-1) ** result
     for i in range(3):
         op_mat += sign * vec[i] * Clifford(i + 1).matrix / 2
@@ -98,7 +106,7 @@ def _op_mat_from_result(vec: tuple[float, float, float], result: bool) -> np.nda
 
 
 def perform_measure(
-    qubit_node: int, qubit_loc: int, plane: Plane, angle: float, state, selector: BranchSelector
+    qubit_node: int, qubit_loc: int, plane: Plane, angle: float, state, selector: BranchSelector, symbolic: bool = False
 ) -> bool:
     """Perform measurement of a qubit."""
     vec = plane.polar(angle)
@@ -109,14 +117,14 @@ def perform_measure(
     def get_op_mat_0() -> np.ndarray:
         nonlocal op_mat_0
         if op_mat_0 is None:
-            op_mat_0 = _op_mat_from_result(vec, False)
+            op_mat_0 = _op_mat_from_result(vec, False, symbolic=symbolic)
         return op_mat_0
 
     def compute_expectation_0() -> float:
         return state.expectation_single(get_op_mat_0(), qubit_loc)
 
     result = selector.measure(qubit_node, compute_expectation_0)
-    op_mat = _op_mat_from_result(vec, True) if result else get_op_mat_0()
+    op_mat = _op_mat_from_result(vec, True, symbolic=symbolic) if result else get_op_mat_0()
     state.evolve_single(op_mat, qubit_loc)
     return result
 
@@ -246,6 +254,7 @@ class Backend:
         branch_selector: BranchSelector | None = None,
         pr_calc: bool | None = None,
         rng: Generator | None = None,
+        symbolic: bool = False,
     ) -> None:
         """Construct a backend.
 
@@ -254,11 +263,15 @@ class Backend:
             pr_calc : bool
                 whether or not to compute the probability distribution before choosing the measurement result.
                 if False, measurements yield results 0/1 with 50% probabilities each.
+                Optional, default is `True`.
             node_index : NodeIndex
                 mapping between node numbers and qubit indices in the internal state of the backend.
             state : BackendState
                 internal state of the backend: instance of Statevec, DensityMatrix, or MBQCTensorNet.
-
+            symbolic : bool
+                If `False`, matrice data-type is `np.complex128`, for efficiency.
+                If `True`, matrice data-type is `O` (arbitrary Python object), to allow symbolic computation, at the price of performance cost.
+                Optional, default is `False`.
         """
         self.__state = state
         if node_index is None:
@@ -274,6 +287,7 @@ class Backend:
             if pr_calc is not None or rng is not None:
                 raise ValueError("Cannot specify both branch selector and pr_calc/rng")
             self.__branch_selector = branch_selector
+        self.__symbolic = symbolic
 
     def copy(self) -> Backend:
         """Return a copy of the backend."""
@@ -293,6 +307,11 @@ class Backend:
     def node_index(self) -> NodeIndex:
         """Return the node index table of the backend."""
         return self.__node_index
+
+    @property
+    def symbolic(self) -> bool:
+        """Return whether the backend supports symbolic computation."""
+        return self.__symbolic
 
     def add_nodes(self, nodes: Iterable[int], data: State = BasicStates.PLUS) -> None:
         """Add new qubit(s) to statevector in argument and assign the corresponding node number to list self.node_index.
@@ -325,7 +344,9 @@ class Backend:
         measurement: Measurement
         """
         loc = self.node_index.index(node)
-        result = perform_measure(node, loc, measurement.plane, measurement.angle, self.state, self.__branch_selector)
+        result = perform_measure(
+            node, loc, measurement.plane, measurement.angle, self.state, self.__branch_selector, self.__symbolic
+        )
         self.node_index.remove(node)
         self.state.remove_qubit(loc)
         return result
@@ -343,7 +364,7 @@ class Backend:
         op_mat_0 = _op_mat_from_result(vec, False)
         return self.state.expectation_single(op_mat_0, loc)
 
-    def correct_byproduct(self, cmd, measure_method) -> None:
+    def correct_byproduct(self, cmd: command.M, measure_method: MeasureMethod) -> None:
         """Byproduct correction correct for the X or Z byproduct operators, by applying the X or Z gate."""
         if np.mod(sum([measure_method.get_measure_result(j) for j in cmd.domain]), 2) == 1:
             if cmd.kind == CommandKind.X:
@@ -352,7 +373,7 @@ class Backend:
                 op = Ops.Z
             self.apply_single(node=cmd.node, op=op)
 
-    def apply_single(self, node, op) -> None:
+    def apply_single(self, node: int, op: npt.NDArray) -> None:
         """Apply a single gate to the state."""
         index = self.node_index.index(node)
         self.state.evolve_single(op=op, i=index)
@@ -366,7 +387,7 @@ class Backend:
         """Apply noise."""
         raise ValueError("Noise not supported by this backend.")
 
-    def sort_qubits(self, output_nodes) -> None:
+    def sort_qubits(self, output_nodes: Iterable[int]) -> None:
         """Sort the qubit order in internal statevector."""
         for i, ind in enumerate(output_nodes):
             if self.node_index.index(ind) != i:
@@ -374,7 +395,7 @@ class Backend:
                 self.state.swap((i, move_from))
                 self.node_index.swap(i, move_from)
 
-    def finalize(self, output_nodes) -> None:
+    def finalize(self, output_nodes: Iterable[int]) -> None:
         """To be run at the end of pattern simulation."""
         self.sort_qubits(output_nodes)
 

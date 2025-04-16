@@ -6,21 +6,27 @@ Simulate MBQC with density matrix representation.
 from __future__ import annotations
 
 import copy
-import numbers
 import sys
-from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from collections.abc import Collection, Iterable
+from typing import TYPE_CHECKING, SupportsComplex, SupportsFloat
 
 import numpy as np
 
 from graphix import linalg_validations as lv
+from graphix import parameter, states
 from graphix.channels import KrausChannel
+from graphix.parameter import Expression, ExpressionOrSupportsComplex
 from graphix.sim.base_backend import Backend, BackendState
 from graphix.sim.statevec import CNOT_TENSOR, CZ_TENSOR, SWAP_TENSOR, Statevec
 from graphix.states import BasicStates, State
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    import numpy.typing as npt
+
     from graphix.noise_models.noise_model import Noise
+    from graphix.parameter import ExpressionOrSupportsFloat, Parameter
 
 
 class DensityMatrix(BackendState):
@@ -56,7 +62,7 @@ class DensityMatrix(BackendState):
         if nqubit is not None and nqubit < 0:
             raise ValueError("nqubit must be a non-negative integer.")
 
-        def check_size_consistency(mat):
+        def check_size_consistency(mat) -> None:
             if nqubit is not None and mat.shape != (2**nqubit, 2**nqubit):
                 raise ValueError(
                     f"Inconsistent parameters between nqubit = {nqubit} and the shape of the provided density matrix = {mat.shape}."
@@ -72,15 +78,18 @@ class DensityMatrix(BackendState):
             if len(input_list) != 0:
                 # needed since Object is iterable but not subscribable!
                 try:
-                    if isinstance(input_list[0], Iterable) and isinstance(input_list[0][0], numbers.Number):
+                    if isinstance(input_list[0], Iterable) and isinstance(
+                        input_list[0][0], (Expression, SupportsComplex, SupportsFloat)
+                    ):
                         self.rho = np.array(input_list)
                         if not lv.is_qubitop(self.rho):
                             raise ValueError("Cannot interpret the provided density matrix as a qubit operator.")
                         check_size_consistency(self.rho)
-                        if not lv.is_unit_trace(self.rho):
-                            raise ValueError("Density matrix must have unit trace.")
-                        if not lv.is_psd(self.rho):
-                            raise ValueError("Density matrix must be positive semi-definite.")
+                        if self.rho.dtype != "O":
+                            if not lv.is_unit_trace(self.rho):
+                                raise ValueError("Density matrix must have unit trace.")
+                            if not lv.is_psd(self.rho):
+                                raise ValueError("Density matrix must be positive semi-definite.")
                         return
                 except TypeError:
                     pass
@@ -121,7 +130,7 @@ class DensityMatrix(BackendState):
         rho_tensor = np.moveaxis(rho_tensor, (0, -1), (i, i + self.nqubit))
         self.rho = rho_tensor.reshape((2**self.nqubit, 2**self.nqubit))
 
-    def evolve(self, op, qargs) -> None:
+    def evolve(self, op: npt.NDArray, qargs: Collection[int]) -> None:
         """Multi-qubit operation.
 
         Args:
@@ -168,7 +177,7 @@ class DensityMatrix(BackendState):
         )
         self.rho = rho_tensor.reshape((2**self.nqubit, 2**self.nqubit))
 
-    def expectation_single(self, op, i) -> complex:
+    def expectation_single(self, op: npt.NDArray, i: int) -> complex:
         """Return the expectation value of single-qubit operator.
 
         Args:
@@ -194,11 +203,11 @@ class DensityMatrix(BackendState):
 
         return np.trace(rho_tensor.reshape((2**self.nqubit, 2**self.nqubit)))
 
-    def dims(self):
+    def dims(self) -> list[int]:
         """Return the dimensions of the density matrix."""
         return self.rho.shape
 
-    def tensor(self, other) -> None:
+    def tensor(self, other: DensityMatrix) -> None:
         r"""Tensor product state with other density matrix.
 
         Results in self :math:`\otimes` other.
@@ -212,7 +221,7 @@ class DensityMatrix(BackendState):
             other = DensityMatrix(other)
         self.rho = np.kron(self.rho, other.rho)
 
-    def cnot(self, edge) -> None:
+    def cnot(self, edge: tuple[int, int]) -> None:
         """Apply CNOT gate to density matrix.
 
         Parameters
@@ -222,7 +231,7 @@ class DensityMatrix(BackendState):
         """
         self.evolve(CNOT_TENSOR.reshape(4, 4), edge)
 
-    def swap(self, edge) -> None:
+    def swap(self, edge: tuple[int, int]) -> None:
         """Swap qubits.
 
         Parameters
@@ -232,7 +241,7 @@ class DensityMatrix(BackendState):
         """
         self.evolve(SWAP_TENSOR.reshape(4, 4), edge)
 
-    def entangle(self, edge) -> None:
+    def entangle(self, edge: tuple[int, int]) -> None:
         """Connect graph nodes.
 
         Parameters
@@ -251,7 +260,7 @@ class DensityMatrix(BackendState):
         self.ptrace(loc)
         self.normalize()
 
-    def ptrace(self, qargs) -> None:
+    def ptrace(self, qargs: Collection[int] | int) -> None:
         """Partial trace.
 
         Parameters
@@ -277,7 +286,7 @@ class DensityMatrix(BackendState):
 
         self.rho = rho_res.reshape((2**nqubit_after, 2**nqubit_after))
 
-    def fidelity(self, statevec):
+    def fidelity(self, statevec: Statevec) -> float:
         """Calculate the fidelity against reference statevector.
 
         Parameters
@@ -287,7 +296,11 @@ class DensityMatrix(BackendState):
         """
         return np.abs(statevec.transpose().conj() @ self.rho @ statevec)
 
-    def apply_channel(self, channel: KrausChannel, qargs) -> None:
+    def flatten(self) -> npt.NDArray:
+        """Return flattened density matrix."""
+        return self.rho.flatten()
+
+    def apply_channel(self, channel: KrausChannel, qargs: Collection[int]) -> None:
         """Apply a channel to a density matrix.
 
         Parameters
@@ -329,26 +342,27 @@ class DensityMatrix(BackendState):
 
         self.rho = result_array
 
+    def subs(self, variable: Parameter, substitute: ExpressionOrSupportsFloat) -> DensityMatrix:
+        """Return a copy of the density matrix where all occurrences of the given variable in measurement angles are substituted by the given value."""
+        result = copy.copy(self)
+        result.rho = np.vectorize(lambda value: parameter.subs(value, variable, substitute))(self.rho)
+        return result
+
+    def xreplace(self, assignment: Mapping[Parameter, ExpressionOrSupportsFloat]) -> DensityMatrix:
+        """Return a copy of the density matrix where all occurrences of the given keys in measurement angles are substituted by the given values in parallel."""
+        result = copy.copy(self)
+        result.rho = np.vectorize(lambda value: parameter.xreplace(value, assignment))(self.rho)
+        return result
+
 
 class DensityMatrixBackend(Backend):
     """MBQC simulator with density matrix method."""
 
     def __init__(self, **kwargs) -> None:
-        """Construct a density matrix backend.
-
-        Parameters
-        ----------
-        pattern : :class:`graphix.pattern.Pattern` object
-            Pattern to be simulated.
-        pr_calc : bool
-            whether or not to compute the probability distribution before choosing the measurement result.
-            if False, measurements yield results 0/1 with 50% probabilities each.
-        rng: :class:`np.random.Generator` (default: `None`)
-            random number generator to use for measurements
-        """
+        """Construct a density matrix backend."""
         super().__init__(DensityMatrix(nqubit=0), **kwargs)
 
-    def apply_channel(self, channel: KrausChannel, qargs) -> None:
+    def apply_channel(self, channel: KrausChannel, qargs: Collection[int]) -> None:
         """Apply channel to the state.
 
         Parameters
@@ -369,9 +383,9 @@ if sys.version_info >= (3, 10):
         State
         | DensityMatrix
         | Statevec
-        | Iterable[State]
-        | Iterable[numbers.Number]
-        | Iterable[Iterable[numbers.Number]]
+        | Iterable[states.State]
+        | Iterable[ExpressionOrSupportsComplex]
+        | Iterable[Iterable[ExpressionOrSupportsComplex]]
     )
 else:
     from typing import Union
@@ -380,7 +394,7 @@ else:
         State,
         DensityMatrix,
         Statevec,
-        Iterable[State],
-        Iterable[numbers.Number],
-        Iterable[Iterable[numbers.Number]],
+        Iterable[states.State],
+        Iterable[ExpressionOrSupportsComplex],
+        Iterable[Iterable[ExpressionOrSupportsComplex]],
     ]

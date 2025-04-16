@@ -21,7 +21,7 @@ from graphix.sim.base_backend import Backend
 from graphix.sim.density_matrix import DensityMatrixBackend
 from graphix.sim.statevec import StatevectorBackend
 from graphix.sim.tensornet import TensorNetworkBackend
-from graphix.states import BasicStates
+from graphix.states import BasicStates, State
 
 if TYPE_CHECKING:
     from graphix.pattern import Pattern

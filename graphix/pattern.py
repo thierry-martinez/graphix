@@ -5,37 +5,40 @@ ref: V. Danos, E. Kashefi and P. Panangaden. J. ACM 54.2 8 (2007)
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import io
 import subprocess
 import tempfile
 import warnings
+from collections.abc import Iterator
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Literal, TypeVar
+from typing import Literal, SupportsFloat, TypeVar
 
 import networkx as nx
 import typing_extensions
 
-from graphix import command
+from graphix import command, parameter
 from graphix.clifford import Clifford
 from graphix.command import Command, CommandKind, command_to_latex, command_to_str, command_to_unicode
 from graphix.device_interface import PatternRunner
 from graphix.fundamentals import Axis, Plane, Sign
 from graphix.gflow import find_flow, find_gflow, get_layers
-from graphix.graphsim.graphstate import GraphState
+from graphix.graphsim import GraphState
 from graphix.measurements import Domains, PauliMeasurement
 from graphix.simulator import PatternSimulator
 from graphix.states import BasicStates
 from graphix.visualization import GraphVisualizer
 
 if typing_extensions.TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable, Iterator, Mapping
 
     import PIL.Image.Image
 
+    from graphix.parameter import ExpressionOrSupportsFloat, Parameter
     from graphix.sim.base_backend import Backend, BackendState
     from graphix.sim.density_matrix import Data
 
@@ -639,14 +642,15 @@ class Pattern:
                         add_correction_domain(z_dict, cmd.nodes[1 - side], s_domain)
                 e_list.append(cmd)
             elif cmd.kind == CommandKind.M:
+                new_cmd = cmd
                 if clifford_gate := c_dict.pop(cmd.node, None):
-                    new_cmd = cmd.clifford(clifford_gate)
-                else:
-                    new_cmd = deepcopy(cmd)
+                    new_cmd = new_cmd.clifford(clifford_gate)
                 if t_domain := z_dict.pop(cmd.node, None):
-                    new_cmd.t_domain ^= t_domain
+                    # The original domain should not be mutated
+                    new_cmd.t_domain = new_cmd.t_domain ^ t_domain
                 if s_domain := x_dict.pop(cmd.node, None):
-                    new_cmd.s_domain ^= s_domain
+                    # The original domain should not be mutated
+                    new_cmd.s_domain = new_cmd.s_domain ^ s_domain
                 m_list.append(new_cmd)
             elif cmd.kind == CommandKind.Z:
                 add_correction_domain(z_dict, cmd.node, cmd.domain)
@@ -1322,7 +1326,7 @@ class Pattern:
             ind += 1
         return meas_cmds
 
-    def get_meas_plane(self):
+    def get_meas_plane(self) -> dict[int, Plane]:
         """Get measurement plane from the pattern.
 
         Returns
@@ -1421,7 +1425,7 @@ class Pattern:
                     vops[cmd.node] = cmd.clifford
         for out in self.output_nodes:
             if out not in vops and include_identity:
-                vops[out] = 0
+                vops[out] = Clifford.I
         return vops
 
     def connected_nodes(self, node, prepared=None):
@@ -1618,9 +1622,7 @@ class Pattern:
         exe = PatternRunner(self, backend=backend, **kwargs)
         return exe.run()
 
-    def perform_pauli_measurements(
-        self, leave_input: bool = False, use_rustworkx: bool = False, ignore_pauli_with_deps: bool = False
-    ) -> None:
+    def perform_pauli_measurements(self, leave_input: bool = False, ignore_pauli_with_deps: bool = False) -> None:
         """Perform Pauli measurements in the pattern using efficient stabilizer simulator.
 
         Parameters
@@ -1628,10 +1630,6 @@ class Pattern:
         leave_input : bool
             Optional (`False` by default).
             If `True`, measurements on input nodes are preserved as-is in the pattern.
-        use_rustworkx : bool
-            Optional (`False` by default).
-            If `True`, `rustworkx` is used for fast graph processing.
-            If `False`, `networkx` is used.
         ignore_pauli_with_deps : bool
             Optional (`False` by default).
             If `True`, Pauli measurements with domains depending on other measures are preserved as-is in the pattern.
@@ -1642,20 +1640,20 @@ class Pattern:
         """
         if not ignore_pauli_with_deps:
             self.move_pauli_measurements_to_the_front()
-        measure_pauli(self, leave_input, copy=False, use_rustworkx=use_rustworkx)
+        measure_pauli(self, leave_input, copy=False)
 
     def draw_graph(
         self,
-        flow_from_pattern=True,
-        show_pauli_measurement=True,
-        show_local_clifford=False,
-        show_measurement_planes=False,
-        show_loop=True,
-        node_distance=(1, 1),
-        figsize=None,
-        save=False,
-        filename=None,
-    ):
+        flow_from_pattern: bool = True,
+        show_pauli_measurement: bool = True,
+        show_local_clifford: bool = False,
+        show_measurement_planes: bool = False,
+        show_loop: bool = True,
+        node_distance: tuple[int, int] = (1, 1),
+        figsize: tuple | None = None,
+        save: bool = False,
+        filename: str | None = None,
+    ) -> None:
         """Visualize the underlying graph of the pattern with flow or gflow structure.
 
         Parameters
@@ -1738,13 +1736,43 @@ class Pattern:
                 for line in cmd_to_qasm3(cmd):
                     file.write(line)
 
+    def is_parameterized(self) -> bool:
+        """
+        Return `True` if there is at least one measurement angle that is not just an instance of `SupportsFloat`.
+
+        A parameterized pattern is a pattern where at least one
+        measurement angle is an expression that is not a number,
+        typically an instance of `sympy.Expr` (but we don't force to
+        choose `sympy` here).
+
+        """
+        return any(not isinstance(cmd.angle, SupportsFloat) for cmd in self if cmd.kind == command.CommandKind.M)
+
+    def subs(self, variable: Parameter, substitute: ExpressionOrSupportsFloat) -> Pattern:
+        """Return a copy of the pattern where all occurrences of the given variable in measurement angles are substituted by the given value."""
+        result = self.copy()
+        for cmd in result:
+            if cmd.kind == command.CommandKind.M:
+                cmd.angle = parameter.subs(cmd.angle, variable, substitute)
+        return result
+
+    def xreplace(self, assignment: Mapping[Parameter, ExpressionOrSupportsFloat]) -> Pattern:
+        """Return a copy of the pattern where all occurrences of the given keys in measurement angles are substituted by the given values in parallel."""
+        result = self.copy()
+        for cmd in result:
+            if cmd.kind == command.CommandKind.M:
+                cmd.angle = parameter.xreplace(cmd.angle, assignment)
+        return result
+
     def copy(self) -> Pattern:
         """Return a copy of the pattern."""
         result = self.__new__(self.__class__)
-        result.__seq = [deepcopy(cmd) for cmd in self.__seq]
+        result.__seq = [copy.copy(cmd) for cmd in self.__seq]
         result.__input_nodes = self.__input_nodes.copy()
         result.__output_nodes = self.__output_nodes.copy()
         result.__n_node = self.__n_node
+        result.__nodes = copy.copy(self.__nodes)
+        result.__edges = copy.copy(self.__edges)
         result._pauli_preprocessed = self._pauli_preprocessed
         result.results = self.results.copy()
         return result
@@ -1823,7 +1851,7 @@ class Pattern:
         self.__seq = new_seq
 
 
-def measure_pauli(pattern, leave_input, copy=False, use_rustworkx=False):
+def measure_pauli(pattern, leave_input, copy=False):
     """Perform Pauli measurement of a pattern by fast graph state simulator.
 
     Uses the decorated-graph method implemented in graphix.graphsim to perform
@@ -1855,7 +1883,7 @@ def measure_pauli(pattern, leave_input, copy=False, use_rustworkx=False):
         pattern.standardize()
     nodes, edges = pattern.get_graph()
     vop_init = pattern.get_vops(conj=False)
-    graph_state = GraphState(nodes=nodes, edges=edges, vops=vop_init, use_rustworkx=use_rustworkx)
+    graph_state = GraphState(nodes=nodes, edges=edges, vops=vop_init)
     results = {}
     to_measure, non_pauli_meas = pauli_nodes(pattern, leave_input)
     if not leave_input and len(list(set(pattern.input_nodes) & {i[0].node for i in to_measure})) > 0:
