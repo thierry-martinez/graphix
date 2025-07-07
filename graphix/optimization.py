@@ -16,18 +16,11 @@ if TYPE_CHECKING:
 def _incorporate_pauli_results_in_domain(
     results: Mapping[int, int], domain: AbstractSet[int]
 ) -> tuple[bool, set[int]] | None:
-    result = None
-    odd = False
-    for node, outcome in results.items():
-        if node in domain:
-            if outcome:
-                odd = not odd
-            if result is None:
-                result = set(domain)
-            result.remove(node)
-    if result is None:
+    if not (results.keys() & domain):
         return None
-    return odd, result
+    new_domain = set(domain - results.keys())
+    odd_outcome = sum(outcome for node, outcome in results.items() if node in domain) % 2
+    return odd_outcome == 1, new_domain
 
 
 def incorporate_pauli_results(pattern: Pattern) -> Pattern:
@@ -61,13 +54,11 @@ def incorporate_pauli_results(pattern: Pattern) -> Pattern:
             signal = _incorporate_pauli_results_in_domain(pattern.results, cmd.domain)
             if signal:
                 apply_c, new_domain = signal
-                if cmd.kind == CommandKind.X:
-                    c = Clifford.X
-                    result.add(command.X(cmd.node, new_domain))
-                else:
-                    c = Clifford.Z
-                    result.add(command.Z(cmd.node, new_domain))
+                if new_domain:
+                    cmd_cstr = command.X if cmd.kind == CommandKind.X else command.Z
+                    result.add(cmd_cstr(cmd.node, new_domain))
                 if apply_c:
+                    c = Clifford.X if cmd.kind == CommandKind.X else Clifford.Z
                     result.add(command.C(cmd.node, c))
             else:
                 result.add(cmd)
