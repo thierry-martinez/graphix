@@ -306,7 +306,7 @@ class Pattern:
         """Execute standardization of the pattern.
 
         This algorithm sort the commands in the following order:
-        `N`, `E`, `M`, `C`, `Z`, `X`.
+        `N`, `E`, `M`, `Z`, `X`, `C`.
         """
         n_list = []
         e_list = []
@@ -372,13 +372,21 @@ class Pattern:
                 # has been already applied to a node, applying a clifford `C'` to the same
                 # node is equivalent to apply `C'C` to a fresh node.
                 c_dict[cmd.node] = cmd.clifford @ c_dict.get(cmd.node, Clifford.I)
+        for node, clifford_gate in c_dict.items():
+            t_domain = z_dict.pop(node, set())
+            s_domain = x_dict.pop(node, set())
+            domains = clifford_gate.commute_domains(Domains(s_domain, t_domain))
+            if domains.t_domain:
+                z_dict[node] = domains.t_domain
+            if domains.s_domain:
+                x_dict[node] = domains.s_domain
         self.__seq = [
             *n_list,
             *e_list,
             *m_list,
-            *(command.C(node=node, clifford=clifford_gate) for node, clifford_gate in c_dict.items()),
             *(command.Z(node=node, domain=domain) for node, domain in z_dict.items()),
             *(command.X(node=node, domain=domain) for node, domain in x_dict.items()),
+            *(command.C(node=node, clifford=clifford_gate) for node, clifford_gate in c_dict.items()),
         ]
 
     def is_standard(self) -> bool:
@@ -1234,7 +1242,6 @@ class Pattern:
         prepared = set(self.input_nodes)
         measured: set[int] = set()
         new: list[Command] = []
-        c_list = []
         cmd: Command
 
         for cmd in meas_commands:
@@ -1256,14 +1263,12 @@ class Pattern:
             if cmd.kind == CommandKind.N and cmd.node not in prepared:
                 new.append(command.N(node=cmd.node))
             elif (
-                cmd.kind == CommandKind.E and all(node in self.output_nodes for node in cmd.nodes)
-            ) or cmd.kind == CommandKind.C:
+                (cmd.kind == CommandKind.E and all(node in self.output_nodes for node in cmd.nodes))
+                or cmd.kind == CommandKind.C
+                or cmd.kind in {CommandKind.Z, CommandKind.X}
+            ):
                 new.append(cmd)
-            elif cmd.kind in {CommandKind.Z, CommandKind.X}:  # Add corrections
-                c_list.append(cmd)
 
-        # c_list = self.correction_commands()
-        new.extend(c_list)
         self.__seq = new
 
     def max_space(self) -> int:
