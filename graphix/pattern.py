@@ -353,33 +353,24 @@ class Pattern:
                     # The original domain should not be mutated
                     new_cmd.s_domain = new_cmd.s_domain ^ s_domain  # noqa: PLR6104
                 m_list.append(new_cmd)
-            elif cmd.kind == CommandKind.Z:
-                add_correction_domain(z_dict, cmd.node, cmd.domain)
-            elif cmd.kind == CommandKind.X:
-                add_correction_domain(x_dict, cmd.node, cmd.domain)
-            elif cmd.kind == CommandKind.C:
-                # If some `X^sZ^t` have been applied to the node, compute `X^s'Z^t'`
-                # such that `CX^sZ^t = X^s'Z^t'C` since the Clifford command will
-                # be applied first (i.e., in right-most position).
-                t_domain = z_dict.pop(cmd.node, set())
-                s_domain = x_dict.pop(cmd.node, set())
-                domains = cmd.clifford.conj.commute_domains(Domains(s_domain, t_domain))
+            # Use of `==` here for mypy
+            elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:  # noqa: PLR1714
+                if cmd.kind == CommandKind.X:
+                    s_domain = cmd.domain
+                    t_domain = set()
+                else:
+                    s_domain = set()
+                    t_domain = cmd.domain
+                domains = c_dict.get(cmd.node, Clifford.I).commute_domains(Domains(s_domain, t_domain))
                 if domains.t_domain:
-                    z_dict[cmd.node] = domains.t_domain
+                    add_correction_domain(z_dict, cmd.node, domains.t_domain)
                 if domains.s_domain:
-                    x_dict[cmd.node] = domains.s_domain
+                    add_correction_domain(x_dict, cmd.node, domains.s_domain)
+            elif cmd.kind == CommandKind.C:
                 # Each pattern command is applied by left multiplication: if a clifford `C`
                 # has been already applied to a node, applying a clifford `C'` to the same
                 # node is equivalent to apply `C'C` to a fresh node.
                 c_dict[cmd.node] = cmd.clifford @ c_dict.get(cmd.node, Clifford.I)
-        for node, clifford_gate in c_dict.items():
-            t_domain = z_dict.pop(node, set())
-            s_domain = x_dict.pop(node, set())
-            domains = clifford_gate.commute_domains(Domains(s_domain, t_domain))
-            if domains.t_domain:
-                z_dict[node] = domains.t_domain
-            if domains.s_domain:
-                x_dict[node] = domains.s_domain
         self.__seq = [
             *n_list,
             *e_list,
