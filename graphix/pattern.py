@@ -295,7 +295,7 @@ class Pattern:
         if method == "direct":  # faster implementation
             self.standardize_direct()
             return
-        if method == "mc":  # direct measuremment calculus implementation
+        if method == "mc":  # direct measurement calculus implementation
             self._move_n_to_left()
             self._move_byproduct_to_right()
             self._move_e_after_n()
@@ -334,13 +334,42 @@ class Pattern:
             else:
                 domain_dict[node] = domain.copy()
 
+        def commute_clifford(clifford_gate: Clifford, c_dict: dict[int, Clifford], i: int, j: int) -> None:
+            """Commute a Clifford with an entanglement command.
+
+            Parameters
+            ----------
+            clifford_gate : Clifford
+                Clifford gate before the entanglement command
+            c_dict : dict[int, Clifford]
+                Mapping from the node index to accumulated Clifford commands.
+            i : int
+                First node of the entanglement command where the Clifford is applied.
+            j : int
+                Second node of the entanglement command where the Clifford is applied.
+            """
+            if clifford_gate in {Clifford.I, Clifford.Z, Clifford.S, Clifford.SDG}:
+                # Clifford gate commutes with the entanglement command.
+                pass
+            elif clifford_gate in {Clifford.X, Clifford.Y, Clifford(9), Clifford(10)}:
+                # Clifford gate commutes with the entanglement command up to a Z Clifford on the other index.
+                c_dict[j] = Clifford.Z @ c_dict.get(j, Clifford.I)
+            else:
+                # Clifford gate commutes with the entanglement command up to a two-qubit Clifford
+                raise NotImplementedError(
+                    f"Pattern contains a Clifford followed by an E command on qubit {i} which only commute up to a two-qubit Clifford. Standarization is not supported."
+                )
+
         for cmd in self:
             if cmd.kind == CommandKind.N:
                 n_list.append(cmd)
             elif cmd.kind == CommandKind.E:
                 for side in (0, 1):
-                    if s_domain := x_dict.get(cmd.nodes[side], None):
-                        add_correction_domain(z_dict, cmd.nodes[1 - side], s_domain)
+                    i, j = cmd.nodes[side], cmd.nodes[1 - side]
+                    if clifford_gate := c_dict.get(i):
+                        commute_clifford(clifford_gate, c_dict, i, j)
+                    if s_domain := x_dict.get(i):
+                        add_correction_domain(z_dict, j, s_domain)
                 e_list.append(cmd)
             elif cmd.kind == CommandKind.M:
                 new_cmd = cmd
