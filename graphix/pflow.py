@@ -16,8 +16,8 @@ import networkx as nx
 import numpy as np
 
 from graphix.fundamentals import Axis, Plane
-from graphix.gflow import get_pauli_nodes
 from graphix.linalg import MatGF2
+from graphix.measurements import PauliMeasurement
 from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
@@ -200,7 +200,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     -----
     See Theorem 4.4, steps 8 - 12 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    n_cols_p = len(ogi.non_outputs) # TODO: rename more clear
+    n_cols_p = len(ogi.non_outputs)  # TODO: rename more clear
     n_rows_p = len(ogi.og.outputs) - len(ogi.og.inputs)
 
     # Steps 8, 9 and 10
@@ -548,8 +548,10 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
         return None
 
     ogi = OpenGraphIndex(og)
-    # TODO: name suggests that pflow exists, not true at this stage 
-    if (pflow_algebraic := _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)) is None: # TODO: don't abuse `:=`
+    # TODO: name suggests that pflow exists, not true at this stage
+    if (
+        pflow_algebraic := _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)
+    ) is None:  # TODO: don't abuse `:=`
         return None
     if (pflow := _algebraic2pflow(ogi, *pflow_algebraic)) is None:
         return None
