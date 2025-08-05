@@ -327,7 +327,7 @@ class MatGF2:
         Notes
         -----
         Let us consider a matrix :math:`A` of size :math:`(m \times n)`. The right inverse is a matrix :math:`B` of size :math:`(n \times m)` s.t. :math:`AB = I` where :math:`I` is the identity matrix.
-        - The right inverse only exists if :math:`rank(A) = m`. Therefore, it is necessary but not sufficient that :math:`m > n`.
+        - The right inverse only exists if :math:`rank(A) = m`. Therefore, it is necessary but not sufficient that :math:`m ≤ n`.
         - The right inverse is unique only if :math:`m=n`.
         """
         m, n = self.data.shape

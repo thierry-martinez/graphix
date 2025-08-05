@@ -80,12 +80,10 @@ def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
     adj_red = MatGF2(np.zeros((len(row_tags), len(col_tags)), dtype=np.int_))
 
     for n1, n2 in graph.edges:
-        if n1 in row_tags and n2 in col_tags:
-            i, j = row_tags.index(n1), col_tags.index(n2)
-            adj_red.data[i, j] = 1
-        if n2 in row_tags and n1 in col_tags:
-            i, j = row_tags.index(n2), col_tags.index(n1)
-            adj_red.data[i, j] = 1
+        for u, v in ((n1, n2), (n2, n1)):
+            if u in row_tags and v in col_tags:
+                i, j = row_tags.index(u), col_tags.index(v)
+                adj_red.data[i, j] = 1
 
     return adj_red
 
@@ -119,29 +117,22 @@ def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
     # TODO: integrate pauli measurements in open graphs
     meas_planes = {i: m.plane for i, m in meas.items()}
     meas_angles = {i: m.angle for i, m in meas.items()}
-    lx, ly, lz = get_pauli_nodes(meas_planes, meas_angles)
-    meas_plane_axis: dict[int, Plane | Axis] = {}
-    for i, plane in meas_planes.items():
-        if i in lx:
-            meas_plane_axis[i] = Axis.X
-        elif i in ly:
-            meas_plane_axis[i] = Axis.Y
-        elif i in lz:
-            meas_plane_axis[i] = Axis.Z
-        else:
-            meas_plane_axis[i] = plane
+    meas_plane_axis = {
+        node: pm.axis if (pm := PauliMeasurement.try_from(plane, meas_angles[node])) else plane
+        for node, plane in meas_planes.items()
+    }
 
     for v in row_tags:  # v is a node tag
         i = row_tags.index(v)
         plane_axis_v = meas_plane_axis[v]
 
         if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Z}:
-            flow_demand_matrix.data[i, :] *= 0  # Set row corresponding to node v to 0
+            flow_demand_matrix.data[i, :] = 0  # Set row corresponding to node v to 0
         if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Y, Axis.Z} and v not in inputs_set:
             j = col_tags.index(v)
             flow_demand_matrix.data[i, j] = 1  # Set element (v, v) = 0
         if plane_axis_v in {Plane.XY, Axis.X, Axis.Y, Axis.Z}:
-            order_demand_matrix.data[i, :] *= 0  # Set row corresponding to node v to 0
+            order_demand_matrix.data[i, :] = 0  # Set row corresponding to node v to 0
         if plane_axis_v in {Plane.XY, Plane.XZ} and v not in inputs_set:
             j = col_tags.index(v)
             order_demand_matrix.data[i, j] = 1  # Set element (v, v) = 1
