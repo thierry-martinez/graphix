@@ -200,7 +200,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     -----
     See Theorem 4.4, steps 8 - 12 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    n_cols_p = len(ogi.non_outputs)
+    n_cols_p = len(ogi.non_outputs) # TODO: rename more clear
     n_rows_p = len(ogi.og.outputs) - len(ogi.og.inputs)
 
     # Steps 8, 9 and 10
@@ -277,7 +277,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
             reorder(2, -1) -> [2, 0, 1, 3, 4]
             ```
             """
-            val = row_permutation.pop(old_pos)
+            val = row_permutation.pop(old_pos)  # TODO: inefficient, do inplace swap, check linalg.swap_row
             row_permutation.insert(new_pos + (new_pos < old_pos), val)
 
         for v in solvable_nodes:
@@ -498,7 +498,7 @@ def _algebraic2pflow(
 
     # Calculation of the partial ordering
 
-    if (topo_gen := _get_topological_order(ordering_matrix)) is None:
+    if (topo_gen := _get_topological_order(ordering_matrix)) is None:  # TODO: rewrite in two lines
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
     l_k = dict.fromkeys(ogi.og.outputs, 0)  # Output nodes are always in layer 0
@@ -548,7 +548,8 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
         return None
 
     ogi = OpenGraphIndex(og)
-    if (pflow_algebraic := _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)) is None:
+    # TODO: name suggests that pflow exists, not true at this stage 
+    if (pflow_algebraic := _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)) is None: # TODO: don't abuse `:=`
         return None
     if (pflow := _algebraic2pflow(ogi, *pflow_algebraic)) is None:
         return None
