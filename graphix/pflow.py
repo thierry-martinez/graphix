@@ -326,38 +326,40 @@ def _update_kls_matrix(
         # Step 12.d.v
         pivots = []  # Store pivots for next step.
         for i, row in enumerate(kls_matrix.data):
-            col_idxs = np.flatnonzero(row[:n_oi_diff])  # Column indices with 1s in first block.
-            if i == k:
-                pivots.append(None if col_idxs.size == 0 else col_idxs[0])
-                # We don't break the loop even if row `k` is 0 in the first block because we are storing all pivots in this loop too.
-                continue
-            if col_idxs.size == 0:
-                # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
-                break
-            pivots.append(p := col_idxs[0])
-            if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
-                kls_matrix.data[k] += kls_matrix.data[i, :]
+            if i != k:
+                col_idxs = np.flatnonzero(row[:n_oi_diff])  # Column indices with 1s in first block.
+                if col_idxs.size == 0:
+                    # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
+                    break
+                pivots.append(p := col_idxs[0])
+                if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
+                    kls_matrix.data[k] += kls_matrix.data[i, :]
 
-        # Step 12.d.vi. TODO: This step is a bit messy, try to improve
         row_permutation = list(range(n_no))  # Row indices of `kls_matrix`.
         n_pivots = len(pivots)
 
-        if n_pivots >= k:  # Row `k` is among non-zero rows
-            if (p0 := pivots[k]) is None:  # Row `k` has all zeros in first block.
-                reorder(k, n_pivots)  # Move row `k` to the top of the zeros block.
-            else:
-                new_pos = int(np.argmax(np.array(pivots) > p0) - 1)
-                reorder(k, new_pos)
-        else:  # Row `k` is among zero rows.
-            col_idxs = np.flatnonzero(kls_matrix.data[k, :n_oi_diff])
-            if col_idxs.size:  # Row `k` is non-zero.
-                p0 = col_idxs[0]  # Leading 1 of row `k`.
-                new_pos = (
-                    int(np.argmax(np.array(pivots) > p0) - 1) if pivots else -1
-                )  # `pivots` can be empty. If so, we bring row `k` to the top since it's non-zero.
-                reorder(k, new_pos)
+        col_idxs = np.flatnonzero(kls_matrix.data[k, :n_oi_diff])
+        pk = col_idxs[0] if col_idxs.size else None  # Pivot of row `k`.
 
-        kls_matrix.permute_row(row_permutation)
+        if pk and k >= n_pivots:  # Row `k` is non-zero in the FB (first block) and it's among zero rows.
+            # Find row `new_pos` s.t. `pivots[new_pos] <= pk < pivots[new_pos+1]`.
+            new_pos = (
+                int(np.argmax(np.array(pivots) > pk) - 1) if pivots else -1
+            )  # `pivots` can be empty. If so, we bring row `k` to the top since it's non-zero.
+        elif pk:  # Row `k` is non-zero in the FB and it's among non-zero rows.
+            # Find row `new_pos` s.t. `pivots[new_pos] <= pk < pivots[new_pos+1]`
+            new_pos = int(np.argmax(np.array(pivots) > pk) - 1)
+            # We skipped row `k` in loop of step 12.d.v, so `pivots[j]` can be the pivot of row `j` or `j+1`.
+            if new_pos >= k:
+                new_pos += 1
+        elif k < n_pivots:  # Row `k` is zero in the first block and it's among non-zero rows.
+            new_pos = n_pivots  # Move row `k` to the top of the zeros block (i.e., below the row of the last pivot).
+        else:  # Row `k` is zero in the first block and it's among zero rows.
+            new_pos = k  # Do nothing.
+
+        if new_pos != k:
+            reorder(k, new_pos)
+            kls_matrix.permute_row(row_permutation)
 
 
 def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
