@@ -21,6 +21,8 @@ from graphix.measurements import PauliMeasurement
 from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
+
     from graphix.opengraph import OpenGraph
 
 
@@ -200,145 +202,153 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     -----
     See Theorem 4.4, steps 8 - 12 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    n_cols_p = len(ogi.non_outputs)  # TODO: rename more clear
-    n_rows_p = len(ogi.og.outputs) - len(ogi.og.inputs)
+    n_no = len(ogi.non_outputs)  # number of columns of P matrix
+    n_oi_diff = len(ogi.og.outputs) - len(ogi.og.inputs)  # number of rows of P matrix
 
     # Steps 8, 9 and 10
-    kils_matrix = MatGF2(nb_matrix.data[:, n_cols_p:])  # N_R matrix
-    kils_matrix.concatenate(MatGF2(nb_matrix.data[:, :n_cols_p]), axis=1)  # Concatenate N_L matrix
-    kils_matrix.concatenate(MatGF2(np.eye(n_cols_p, dtype=np.int_)), axis=1)  # Concatenate identity matrix
+    kils_matrix = MatGF2(nb_matrix.data[:, n_no:])  # N_R matrix
+    kils_matrix.concatenate(MatGF2(nb_matrix.data[:, :n_no]), axis=1)  # Concatenate N_L matrix
+    kils_matrix.concatenate(MatGF2(np.eye(n_no, dtype=np.int_)), axis=1)  # Concatenate identity matrix
 
-    kls_matrix = kils_matrix.gauss_elimination(ncols=n_rows_p, copy=True)  # RREF form is not needed, only REF.
+    kls_matrix = kils_matrix.gauss_elimination(ncols=n_oi_diff, copy=True)  # RREF form is not needed, only REF.
 
     # Step 11
-    p_matrix = MatGF2(np.zeros((n_rows_p, n_cols_p), dtype=np.int_))
+    p_matrix = MatGF2(np.zeros((n_oi_diff, n_no), dtype=np.int_))
     solved_nodes: set[int] = set()
     non_outputs_set = set(ogi.non_outputs)
 
     # Step 12
-
-    def get_solvable_nodes() -> set[int]:
-        """Return the set nodes whose associated linear system is solvable.
-
-        A node is solvable if:
-            - It has not been solved yet.
-            - Its column in the second block of :math:`K_{LS}` (which determines the constants in each equation) has only zeros where it intersects rows for which all the coefficients in the first block are 0s.
-
-        See Theorem 4.4, step 12.a in Mitosek and Backens, 2024 (arXiv:2410.23439).
-        """
-        solvable_nodes: set[int] = set()
-
-        row_idxs = np.flatnonzero(
-            ~kls_matrix.data[:, :n_rows_p].any(axis=1)
-        )  # Row indices of the 0-rows in the first block of K_{LS}
-        if row_idxs.size:
-            for v in non_outputs_set - solved_nodes:
-                j = n_rows_p + ogi.non_outputs.index(
-                    v
-                )  # `n_rows_p` is the column offset from the first block of K_{LS}
-                if not kls_matrix.data[row_idxs, j].any():
-                    solvable_nodes.add(v)
-
-        return solvable_nodes
-
-    def update_p_matrix() -> None:
-        """Update `p_matrix`.
-
-        The solution of the linear system associated with node :math:`v` in `solvable_nodes` corresponds to the column of `p_matrix` associated with node :math:`v`.
-
-        See Theorem 4.4, steps 12.b and 12.c in Mitosek and Backens, 2024 (arXiv:2410.23439).
-        """
-        for v in solvable_nodes:
-            j = ogi.non_outputs.index(v)
-            j_shift = n_rows_p + j  # `n_rows_p` is the column offset from the first block of K_{LS}
-            mat = MatGF2(kls_matrix.data[:, :n_rows_p])  # first block of K_{LS}, in row echelon form.
-            b = MatGF2(kls_matrix.data[:, j_shift])
-            x = _back_substitute(mat, b)
-            p_matrix.data[:, j] = x.data
-
-    def update_kls_matrix() -> None:
-        """Update `kls_matrix`.
-
-        Bring the linear system encoded in :math:`K_{LS}` to the row-echelon form (REF) that would be achieved by Gaussian elimination if the row and column vectors corresponding to vertices in `solvable_nodes` where not included in the starting matrix.
-
-        See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
-        """
-        shift = n_rows_p + n_cols_p  # `n_rows_p` + `n_cols_p` is the column offset from the first two blocks of K_{LS}
-        row_permutation: list[int]
-
-        def reorder(old_pos: int, new_pos: int) -> None:  # Used in step 12.d.vi
-            """Reorder the elements of `row_permutation`.
-
-            The element at `old_pos` is placed on the right of the element at `new_pos`.
-            Example:
-            ```
-            row_permutation = [0, 1, 2, 3, 4]
-            reorder(1, 3) -> [0, 2, 3, 1, 4]
-            reorder(2, -1) -> [2, 0, 1, 3, 4]
-            ```
-            """
-            val = row_permutation.pop(old_pos)  # TODO: inefficient, do inplace swap, check linalg.swap_row
-            row_permutation.insert(new_pos + (new_pos < old_pos), val)
-
-        for v in solvable_nodes:
-            # Step 12.d.ii
-            j = ogi.non_outputs.index(v)
-            j_shift = shift + j
-            row_idxs = np.flatnonzero(
-                kls_matrix.data[:, j_shift]
-            ).tolist()  # Row indices with 1s in column of node v in third block.
-            k = row_idxs.pop()  # TODO: Could `row_idxs` be empty ?
-
-            # Step 12.d.iii
-            kls_matrix.data[row_idxs, :] += kls_matrix.data[k, :]  # Adding a row to previous rows preserves REF.
-
-            # Step 12.d.iv
-            kls_matrix.data[k, :] += kils_matrix.data[j, :]  # Row `k` may now break REF.
-
-            # Step 12.d.v
-            pivots = []  # Store pivots for next step.
-            for i, row in enumerate(kls_matrix.data):
-                col_idxs = np.flatnonzero(row[:n_rows_p])  # Column indices with 1s in first block.
-                if i == k:
-                    pivots.append(None if col_idxs.size == 0 else col_idxs[0])
-                    # We don't break the loop even if row `k` is 0 in the first block because we are storing all pivots in this loop too.
-                    continue
-                if col_idxs.size == 0:
-                    # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
-                    break
-                pivots.append(p := col_idxs[0])
-                if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
-                    kls_matrix.data[k] += kls_matrix.data[i, :]
-
-            # Step 12.d.vi. TODO: This step is a bit messy, try to improve
-            row_permutation = list(range(n_cols_p))  # Row indices of `kls_matrix`.
-            n_pivots = len(pivots)
-
-            if n_pivots >= k:  # Row `k` is among non-zero rows
-                if (p0 := pivots[k]) is None:  # Row `k` has all zeros in first block.
-                    reorder(k, n_pivots)  # Move row `k` to the top of the zeros block.
-                else:
-                    new_pos = int(np.argmax(np.array(pivots) > p0) - 1)
-                    reorder(k, new_pos)
-            else:  # Row `k` is among zero rows.
-                col_idxs = np.flatnonzero(kls_matrix.data[k, :n_rows_p])
-                if col_idxs.size:  # Row `k` is non-zero.
-                    p0 = col_idxs[0]  # Leading 1 of row `k`.
-                    new_pos = int(np.argmax(np.array(pivots) > p0) - 1) if pivots else -1  # `pivots` can be empty. If so, we bring row `k` to the top since it's non-zero.
-                    reorder(k, new_pos)
-
-            kls_matrix.permute_row(row_permutation)
-
     while solved_nodes != non_outputs_set:
-        solvable_nodes = get_solvable_nodes()  # Step 12.a
+        solvable_nodes = _get_solvable_nodes(ogi, kls_matrix, non_outputs_set, solved_nodes, n_oi_diff)  # Step 12.a
         if not solvable_nodes:
             return None
 
-        update_p_matrix()  # Steps 12.b, 12.c
-        update_kls_matrix()  # Step 12.d
+        _update_p_matrix(ogi, kls_matrix, p_matrix, solvable_nodes, n_oi_diff)  # Steps 12.b, 12.c
+        _update_kls_matrix(ogi, kls_matrix, kils_matrix, solvable_nodes, n_oi_diff, n_no)  # Step 12.d
         solved_nodes.update(solvable_nodes)
 
     return p_matrix
+
+
+def _get_solvable_nodes(
+    ogi: OpenGraphIndex, kls_matrix: MatGF2, non_outputs_set: AbstractSet, solved_nodes: AbstractSet, n_oi_diff: int
+) -> set[int]:
+    """Return the set nodes whose associated linear system is solvable.
+
+    A node is solvable if:
+        - It has not been solved yet.
+        - Its column in the second block of :math:`K_{LS}` (which determines the constants in each equation) has only zeros where it intersects rows for which all the coefficients in the first block are 0s.
+
+    See Theorem 4.4, step 12.a in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    """
+    solvable_nodes: set[int] = set()
+
+    row_idxs = np.flatnonzero(
+        ~kls_matrix.data[:, :n_oi_diff].any(axis=1)
+    )  # Row indices of the 0-rows in the first block of K_{LS}
+    if row_idxs.size:
+        for v in non_outputs_set - solved_nodes:
+            j = n_oi_diff + ogi.non_outputs.index(v)  # `n_oi_diff` is the column offset from the first block of K_{LS}
+            if not kls_matrix.data[row_idxs, j].any():
+                solvable_nodes.add(v)
+
+    return solvable_nodes
+
+
+def _update_p_matrix(
+    ogi: OpenGraphIndex, kls_matrix: MatGF2, p_matrix: MatGF2, solvable_nodes: AbstractSet, n_oi_diff: int
+) -> None:
+    """Update `p_matrix`.
+
+    The solution of the linear system associated with node :math:`v` in `solvable_nodes` corresponds to the column of `p_matrix` associated with node :math:`v`.
+
+    See Theorem 4.4, steps 12.b and 12.c in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    """
+    for v in solvable_nodes:
+        j = ogi.non_outputs.index(v)
+        j_shift = n_oi_diff + j  # `n_oi_diff` is the column offset from the first block of K_{LS}
+        mat = MatGF2(kls_matrix.data[:, :n_oi_diff])  # first block of K_{LS}, in row echelon form.
+        b = MatGF2(kls_matrix.data[:, j_shift])
+        x = _back_substitute(mat, b)
+        p_matrix.data[:, j] = x.data
+
+
+def _update_kls_matrix(
+    ogi: OpenGraphIndex, kls_matrix: MatGF2, kils_matrix: MatGF2, solvable_nodes: AbstractSet, n_oi_diff: int, n_no: int
+) -> None:
+    """Update `kls_matrix`.
+
+    Bring the linear system encoded in :math:`K_{LS}` to the row-echelon form (REF) that would be achieved by Gaussian elimination if the row and column vectors corresponding to vertices in `solvable_nodes` where not included in the starting matrix.
+
+    See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    """
+    shift = n_oi_diff + n_no  # `n_oi_diff` + `n_no` is the column offset from the first two blocks of K_{LS}
+    row_permutation: list[int]
+
+    def reorder(old_pos: int, new_pos: int) -> None:  # Used in step 12.d.vi
+        """Reorder the elements of `row_permutation`.
+
+        The element at `old_pos` is placed on the right of the element at `new_pos`.
+        Example:
+        ```
+        row_permutation = [0, 1, 2, 3, 4]
+        reorder(1, 3) -> [0, 2, 3, 1, 4]
+        reorder(2, -1) -> [2, 0, 1, 3, 4]
+        ```
+        """
+        val = row_permutation.pop(old_pos)  # TODO: inefficient, do inplace swap, check linalg.swap_row
+        row_permutation.insert(new_pos + (new_pos < old_pos), val)
+
+    for v in solvable_nodes:
+        # Step 12.d.ii
+        j = ogi.non_outputs.index(v)
+        j_shift = shift + j
+        row_idxs = np.flatnonzero(
+            kls_matrix.data[:, j_shift]
+        ).tolist()  # Row indices with 1s in column of node v in third block.
+        k = row_idxs.pop()  # TODO: Could `row_idxs` be empty ?
+
+        # Step 12.d.iii
+        kls_matrix.data[row_idxs, :] += kls_matrix.data[k, :]  # Adding a row to previous rows preserves REF.
+
+        # Step 12.d.iv
+        kls_matrix.data[k, :] += kils_matrix.data[j, :]  # Row `k` may now break REF.
+
+        # Step 12.d.v
+        pivots = []  # Store pivots for next step.
+        for i, row in enumerate(kls_matrix.data):
+            col_idxs = np.flatnonzero(row[:n_oi_diff])  # Column indices with 1s in first block.
+            if i == k:
+                pivots.append(None if col_idxs.size == 0 else col_idxs[0])
+                # We don't break the loop even if row `k` is 0 in the first block because we are storing all pivots in this loop too.
+                continue
+            if col_idxs.size == 0:
+                # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
+                break
+            pivots.append(p := col_idxs[0])
+            if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
+                kls_matrix.data[k] += kls_matrix.data[i, :]
+
+        # Step 12.d.vi. TODO: This step is a bit messy, try to improve
+        row_permutation = list(range(n_no))  # Row indices of `kls_matrix`.
+        n_pivots = len(pivots)
+
+        if n_pivots >= k:  # Row `k` is among non-zero rows
+            if (p0 := pivots[k]) is None:  # Row `k` has all zeros in first block.
+                reorder(k, n_pivots)  # Move row `k` to the top of the zeros block.
+            else:
+                new_pos = int(np.argmax(np.array(pivots) > p0) - 1)
+                reorder(k, new_pos)
+        else:  # Row `k` is among zero rows.
+            col_idxs = np.flatnonzero(kls_matrix.data[k, :n_oi_diff])
+            if col_idxs.size:  # Row `k` is non-zero.
+                p0 = col_idxs[0]  # Leading 1 of row `k`.
+                new_pos = (
+                    int(np.argmax(np.array(pivots) > p0) - 1) if pivots else -1
+                )  # `pivots` can be empty. If so, we bring row `k` to the top since it's non-zero.
+                reorder(k, new_pos)
+
+        kls_matrix.permute_row(row_permutation)
 
 
 def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
