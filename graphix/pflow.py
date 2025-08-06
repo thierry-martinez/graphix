@@ -318,14 +318,14 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
                 if (p0 := pivots[k]) is None:  # Row `k` has all zeros in first block.
                     reorder(k, n_pivots)  # Move row `k` to the top of the zeros block.
                 else:
-                    new_pos = np.argmax(np.array(pivots) > p0) - 1
-                    reorder(k, int(new_pos))
+                    new_pos = int(np.argmax(np.array(pivots) > p0) - 1)
+                    reorder(k, new_pos)
             else:  # Row `k` is among zero rows.
                 col_idxs = np.flatnonzero(kls_matrix.data[k, :n_rows_p])
                 if col_idxs.size:  # Row `k` is non-zero.
                     p0 = col_idxs[0]  # Leading 1 of row `k`.
-                    new_pos = np.argmax(np.array(pivots) > p0) - 1
-                    reorder(k, int(new_pos))
+                    new_pos = int(np.argmax(np.array(pivots) > p0) - 1) if pivots else -1  # `pivots` can be empty. If so, we bring row `k` to the top since it's non-zero.
+                    reorder(k, new_pos)
 
             kls_matrix.permute_row(row_permutation)
 
