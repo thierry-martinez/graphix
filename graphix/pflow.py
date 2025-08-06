@@ -231,7 +231,11 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
 
 
 def _get_solvable_nodes(
-    ogi: OpenGraphIndex, kls_matrix: MatGF2, non_outputs_set: AbstractSet, solved_nodes: AbstractSet, n_oi_diff: int
+    ogi: OpenGraphIndex,
+    kls_matrix: MatGF2,
+    non_outputs_set: AbstractSet[int],
+    solved_nodes: AbstractSet[int],
+    n_oi_diff: int,
 ) -> set[int]:
     """Return the set nodes whose associated linear system is solvable.
 
@@ -256,7 +260,7 @@ def _get_solvable_nodes(
 
 
 def _update_p_matrix(
-    ogi: OpenGraphIndex, kls_matrix: MatGF2, p_matrix: MatGF2, solvable_nodes: AbstractSet, n_oi_diff: int
+    ogi: OpenGraphIndex, kls_matrix: MatGF2, p_matrix: MatGF2, solvable_nodes: AbstractSet[int], n_oi_diff: int
 ) -> None:
     """Update `p_matrix`.
 
@@ -274,7 +278,12 @@ def _update_p_matrix(
 
 
 def _update_kls_matrix(
-    ogi: OpenGraphIndex, kls_matrix: MatGF2, kils_matrix: MatGF2, solvable_nodes: AbstractSet, n_oi_diff: int, n_no: int
+    ogi: OpenGraphIndex,
+    kls_matrix: MatGF2,
+    kils_matrix: MatGF2,
+    solvable_nodes: AbstractSet[int],
+    n_oi_diff: int,
+    n_no: int,
 ) -> None:
     """Update `kls_matrix`.
 
@@ -469,7 +478,7 @@ def _get_topological_order(ordering_matrix: MatGF2) -> list[list[int]] | None:
         return None
 
 
-def _algebraic2pflow(
+def _cnc_matrices2pflow(
     ogi: OpenGraphIndex,
     correction_matrix: MatGF2,
     ordering_matrix: MatGF2,
@@ -508,7 +517,7 @@ def _algebraic2pflow(
 
     # Calculation of the partial ordering
 
-    if (topo_gen := _get_topological_order(ordering_matrix)) is None:  # TODO: rewrite in two lines
+    if (topo_gen := _get_topological_order(ordering_matrix)) is None:
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
     l_k = dict.fromkeys(ogi.og.outputs, 0)  # Output nodes are always in layer 0
@@ -558,12 +567,12 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
         return None
 
     ogi = OpenGraphIndex(og)
-    # TODO: name suggests that pflow exists, not true at this stage
-    if (
-        pflow_algebraic := _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)
-    ) is None:  # TODO: don't abuse `:=`
+
+    cnc_matrices = _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)
+    if cnc_matrices is None:
         return None
-    if (pflow := _algebraic2pflow(ogi, *pflow_algebraic)) is None:
+    pflow = _cnc_matrices2pflow(ogi, *cnc_matrices)
+    if pflow is None:
         return None
 
     pf, l_k = pflow
