@@ -85,7 +85,7 @@ def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
         for u, v in ((n1, n2), (n2, n1)):
             if u in row_tags and v in col_tags:
                 i, j = row_tags.index(u), col_tags.index(v)
-                adj_red.data[i, j] = 1
+                adj_red[i, j] = 1
 
     return adj_red
 
@@ -129,15 +129,15 @@ def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
         plane_axis_v = meas_plane_axis[v]
 
         if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Z}:
-            flow_demand_matrix.data[i, :] = 0  # Set row corresponding to node v to 0
+            flow_demand_matrix[i, :] = 0  # Set row corresponding to node v to 0
         if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Y, Axis.Z} and v not in inputs_set:
             j = col_tags.index(v)
-            flow_demand_matrix.data[i, j] = 1  # Set element (v, v) = 0
+            flow_demand_matrix[i, j] = 1  # Set element (v, v) = 0
         if plane_axis_v in {Plane.XY, Axis.X, Axis.Y, Axis.Z}:
-            order_demand_matrix.data[i, :] = 0  # Set row corresponding to node v to 0
+            order_demand_matrix[i, :] = 0  # Set row corresponding to node v to 0
         if plane_axis_v in {Plane.XY, Plane.XZ} and v not in inputs_set:
             j = col_tags.index(v)
-            order_demand_matrix.data[i, j] = 1  # Set element (v, v) = 1
+            order_demand_matrix[i, j] = 1  # Set element (v, v) = 1
 
     return flow_demand_matrix, order_demand_matrix
 
@@ -206,8 +206,8 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     n_oi_diff = len(ogi.og.outputs) - len(ogi.og.inputs)  # number of rows of P matrix
 
     # Steps 8, 9 and 10
-    kils_matrix = MatGF2(nb_matrix.data[:, n_no:])  # N_R matrix
-    kils_matrix.concatenate(MatGF2(nb_matrix.data[:, :n_no]), axis=1)  # Concatenate N_L matrix
+    kils_matrix = nb_matrix[:, n_no:]  # N_R matrix
+    kils_matrix.concatenate(nb_matrix[:, :n_no], axis=1)  # Concatenate N_L matrix
     kils_matrix.concatenate(MatGF2(np.eye(n_no, dtype=np.int_)), axis=1)  # Concatenate identity matrix
 
     kls_matrix = kils_matrix.gauss_elimination(ncols=n_oi_diff, copy=True)  # RREF form is not needed, only REF.
@@ -271,10 +271,10 @@ def _update_p_matrix(
     for v in solvable_nodes:
         j = ogi.non_outputs.index(v)
         j_shift = n_oi_diff + j  # `n_oi_diff` is the column offset from the first block of K_{LS}
-        mat = MatGF2(kls_matrix.data[:, :n_oi_diff])  # first block of K_{LS}, in row echelon form.
-        b = MatGF2(kls_matrix.data[:, j_shift])
+        mat = kls_matrix[:, :n_oi_diff]  # first block of K_{LS}, in row echelon form.
+        b = kls_matrix[:, j_shift]
         x = _back_substitute(mat, b)
-        p_matrix.data[:, j] = x.data
+        p_matrix[:, j] = x.data
 
 
 def _update_kls_matrix(
@@ -318,10 +318,10 @@ def _update_kls_matrix(
         k = row_idxs.pop()  # TODO: Could `row_idxs` be empty ?
 
         # Step 12.d.iii
-        kls_matrix.data[row_idxs, :] += kls_matrix.data[k, :]  # Adding a row to previous rows preserves REF.
+        kls_matrix[row_idxs] += kls_matrix[k]  # Adding a row to previous rows preserves REF.
 
         # Step 12.d.iv
-        kls_matrix.data[k, :] += kils_matrix.data[j, :]  # Row `k` may now break REF.
+        kls_matrix[k] += kils_matrix[j]  # Row `k` may now break REF.
 
         # Step 12.d.v
         pivots = []  # Store pivots for next step.
@@ -332,8 +332,8 @@ def _update_kls_matrix(
                     # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
                     break
                 pivots.append(p := col_idxs[0])
-                if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
-                    kls_matrix.data[k] += kls_matrix.data[i, :]
+                if kls_matrix[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
+                    kls_matrix[k] += kls_matrix[i]
 
         row_permutation = list(range(n_no))  # Row indices of `kls_matrix`.
         n_pivots = len(pivots)
@@ -392,7 +392,7 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
 
         j = col_idxs[0]
         # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} x_k because A in REF and x_j = 0
-        x.data[j] = b.data[i] ^ np.bitwise_xor.reduce(x.data[col_idxs])
+        x[j] = b.data[i] ^ np.bitwise_xor.reduce(x.data[col_idxs])
 
     return x
 

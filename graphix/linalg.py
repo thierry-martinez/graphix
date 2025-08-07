@@ -32,9 +32,11 @@ class MatGF2:
         """Return the displayable string of the matrix."""
         return str(self.data)
 
-    def __eq__(self, other: MatGF2) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Return `True` if two matrices are equal, `False` otherwise."""
-        return np.all(self.data == other.data)
+        if not isinstance(other, MatGF2):
+            return NotImplemented
+        return bool(np.all(self.data == other.data))
 
     def __add__(self, other: npt.NDArray | MatGF2) -> MatGF2:
         """Add two matrices."""
@@ -59,6 +61,23 @@ class MatGF2:
         if isinstance(other, np.ndarray):
             other = MatGF2(other)
         return MatGF2(self.data @ other.data)
+
+    def __getitem__(self, key) -> MatGF2:
+        """Allow numpy-style slicing."""
+        return MatGF2(self.data.__getitem__(key))
+
+    def __setitem__(self, key, value) -> None:
+        """Assign new value to data field.
+
+        Verification that `value` is a valid finite field element is done at the level of the `galois.GF2__setitem__` method.
+        """
+        if isinstance(value, MatGF2):
+            value = value.data
+        self.data.__setitem__(key, value)
+
+    def __bool__(self) -> bool:
+        """Define truthiness of `MatGF2` following galois (and, therefore, numpy style."""
+        return self.data.__bool__()
 
     def copy(self) -> MatGF2:
         """Return a copy of the matrix."""

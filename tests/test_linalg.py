@@ -232,5 +232,6 @@ class TestLinAlg:
             p = j
 
         # Check 2
-        if mat_linv := mat_l.right_inverse():
+        mat_linv = mat_l.right_inverse()
+        if mat_linv is not None:
             assert mat_linv @ mat_ge == mat
