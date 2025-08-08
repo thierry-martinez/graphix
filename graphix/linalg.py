@@ -349,12 +349,17 @@ class MatGF2:
         - The right inverse is unique only if :math:`m=n`.
         """
         m, n = self.data.shape
-        if m > n or m != self.get_rank():  # short circuit for efficiency
+        if m > n:
             return None
 
         ident = galois.GF2.Identity(m)
         aug = galois.GF2(np.hstack([self.data, ident]))
         red = aug.row_reduce(ncols=n)  # Reduced row echelon form
+
+        # Check that rank of right block is equal to the number of rows.
+        # We don't use `MatGF2.get_rank()` to avoid row-reducing twice.
+        if m != int(np.sum(red[:, :n].any(axis=1))):
+            return None
         rinv = galois.GF2.Zeros((n, m))
 
         for i, row in enumerate(red):
