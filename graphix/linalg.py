@@ -225,9 +225,8 @@ class MatGF2:
         int: int
             rank of the matrix
         """
-        mat_a = self.forward_eliminate(copy=True)[0] if not self.is_canonical_form() else self
-        nonzero_index = np.diag(mat_a.data).nonzero()
-        return len(nonzero_index[0])
+        mat_a = galois.GF2(self.data).row_reduce() if not self.is_canonical_form() else self.data
+        return int(np.sum(mat_a.any(axis=1)))
 
     def forward_eliminate(self, b=None, copy=False) -> tuple[MatGF2, MatGF2, list[int], list[int]]:
         r"""Forward eliminate the matrix.
