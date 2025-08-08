@@ -385,7 +385,7 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     x = MatGF2(np.zeros(n, dtype=np.int_))
 
     row_idxs = np.flatnonzero(~mat.data.any(axis=1))  # Row indices of the 0-rows
-    m_nonzero = (row_idxs[0] if row_idxs.size else m)  # Number of rows with non-zero elements
+    m_nonzero = row_idxs[0] if row_idxs.size else m  # Number of rows with non-zero elements
 
     # We start solving from the first non-zero row and iterate backwards
     for row, b_val in zip(mat.data[:m_nonzero][::-1], b.data[:m_nonzero][::-1]):
