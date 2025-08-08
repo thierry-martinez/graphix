@@ -367,7 +367,7 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
 
     Parameters
     ----------
-    A : MatGF2
+    mat : MatGF2
         Matrix with shape `(m, n)` containing the LS coefficients in row echelon form (REF).
     b : MatGF2
         Matrix with shape `(m,)` containing the constants column vector.
@@ -384,15 +384,15 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     m, n = mat.data.shape
     x = MatGF2(np.zeros(n, dtype=np.int_))
 
-    for i in range(m - 1, -1, -1):
-        row = mat.data[i]
-        col_idxs = np.flatnonzero(row)  # Column indices with 1s
-        if col_idxs.size == 0:
-            continue  # Skip if row is all zeros
+    row_idxs = np.flatnonzero(~mat.data.any(axis=1))  # Row indices of the 0-rows
+    m_nonzero = (row_idxs[0] if row_idxs.size else m)  # Number of rows with non-zero elements
 
+    # We start solving from the first non-zero row and iterate backwards
+    for row, b_val in zip(mat.data[:m_nonzero][::-1], b.data[:m_nonzero][::-1]):
+        col_idxs = np.flatnonzero(row)  # Column indices with 1s
         j = col_idxs[0]
         # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} x_k because A in REF and x_j = 0
-        x[j] = b.data[i] ^ np.bitwise_xor.reduce(x.data[col_idxs])
+        x[j] = b_val ^ np.bitwise_xor.reduce(x.data[col_idxs])
 
     return x
 
