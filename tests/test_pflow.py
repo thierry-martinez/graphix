@@ -22,6 +22,7 @@ from graphix.states import PlanarState
 
 if TYPE_CHECKING:
     from numpy.random import Generator
+    from pytest_benchmark import BenchmarkFixture
 
 
 class OpenGraphTestCase(NamedTuple):
@@ -398,10 +399,12 @@ class TestPflow:
                     assert test_case.flow_demand_mat @ correction_matrix == ident
 
     @pytest.mark.parametrize("test_case", prepare_test_og())
-    def test_find_pflow_determinism(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
+    def test_find_pflow_determinism(
+        self, benchmark: BenchmarkFixture, test_case: OpenGraphTestCase, fx_rng: Generator
+    ) -> None:
         og = test_case.ogi.og
 
-        pflow = find_pflow(og)
+        pflow = benchmark(find_pflow, og)
 
         if not test_case.has_pflow:
             assert pflow is None

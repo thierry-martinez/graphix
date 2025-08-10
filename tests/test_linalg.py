@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import galois
 import numpy as np
@@ -8,6 +8,9 @@ import numpy.typing as npt
 import pytest
 
 from graphix.linalg import MatGF2, back_substitute
+
+if TYPE_CHECKING:
+    from pytest_benchmark import BenchmarkFixture
 
 
 class LinalgTestCase(NamedTuple):
@@ -273,10 +276,10 @@ class TestLinAlg:
             assert mat_linv @ mat_ge == mat
 
     @pytest.mark.parametrize("test_case", prepare_test_back_subs())
-    def test_back_substitute(self, test_case: BackSubsTestCase) -> None:
+    def test_back_substitute(self, benchmark: BenchmarkFixture, test_case: BackSubsTestCase) -> None:
         mat = test_case.mat
         b = test_case.b
 
-        x = back_substitute(mat, b)
+        x = benchmark(back_substitute, mat, b)
 
         assert mat @ x == b
