@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from graphix.linalg import MatGF2
+from graphix.linalg import MatGF2, back_substitute
 
 
 class LinalgTestCase(NamedTuple):
@@ -19,6 +19,11 @@ class LinalgTestCase(NamedTuple):
     x: list[npt.NDArray[np.int_]] | None
     kernel_dim: int
     right_invertible: bool
+
+
+class BackSubsTestCase(NamedTuple):
+    mat: MatGF2
+    b: MatGF2
 
 
 def prepare_test_matrix() -> list[LinalgTestCase]:
@@ -112,6 +117,37 @@ def prepare_test_matrix() -> list[LinalgTestCase]:
             False,
         ),
     ]
+
+
+def prepare_test_back_subs() -> list[BackSubsTestCase]:
+    test_cases: list[BackSubsTestCase] = []
+
+    # `mat` must be in row echelon form.
+    # `b` must have zeros in the indices corresponding to the zero rows of `mat`.
+
+    test_cases.extend(
+        (
+            BackSubsTestCase(mat=MatGF2([[1, 0, 1, 1], [0, 1, 0, 1], [0, 0, 0, 1]]), b=MatGF2([1, 0, 0])),
+            BackSubsTestCase(
+                mat=MatGF2([[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]]),
+                b=MatGF2([0, 1, 1, 0, 0]),
+            ),
+            BackSubsTestCase(
+                mat=MatGF2([[1, 1, 1], [0, 0, 1], [0, 0, 0], [0, 0, 0]]),
+                b=MatGF2([0, 0, 0, 0]),
+            ),
+            BackSubsTestCase(
+                mat=MatGF2([[1, 0, 0], [0, 1, 1], [0, 0, 1], [0, 0, 0]]),
+                b=MatGF2([1, 0, 1, 0]),
+            ),
+            BackSubsTestCase(
+                mat=MatGF2([[1, 0, 1], [0, 1, 0], [0, 0, 1]]),
+                b=MatGF2([1, 1, 1]),
+            ),
+        )
+    )
+
+    return test_cases
 
 
 class TestLinAlg:
@@ -235,3 +271,12 @@ class TestLinAlg:
         mat_linv = mat_l.right_inverse()
         if mat_linv is not None:
             assert mat_linv @ mat_ge == mat
+
+    @pytest.mark.parametrize("test_case", prepare_test_back_subs())
+    def test_back_substitute(self, test_case: BackSubsTestCase) -> None:
+        mat = test_case.mat
+        b = test_case.b
+
+        x = back_substitute(mat, b)
+
+        assert mat @ x == b

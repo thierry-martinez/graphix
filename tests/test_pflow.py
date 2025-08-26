@@ -13,7 +13,6 @@ from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
 from graphix.pflow import (
     OpenGraphIndex,
-    _back_substitute,
     _find_pflow_simple,
     _get_pflow_matrices,
     _get_reduced_adj,
@@ -31,11 +30,6 @@ class OpenGraphTestCase(NamedTuple):
     flow_demand_mat: MatGF2 | None
     order_demand_mat: MatGF2 | None
     has_pflow: bool
-
-
-class BackSubsTestCase(NamedTuple):
-    mat: MatGF2
-    b: MatGF2
 
 
 def prepare_test_og() -> list[OpenGraphTestCase]:
@@ -371,37 +365,6 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
     return test_cases
 
 
-def prepare_test_back_subs() -> list[BackSubsTestCase]:
-    test_cases: list[BackSubsTestCase] = []
-
-    # `mat` must be in row echelon form.
-    # `b` must have zeros in the indices corresponding to the zero rows of `mat`.
-
-    test_cases.extend(
-        (
-            BackSubsTestCase(mat=MatGF2([[1, 0, 1, 1], [0, 1, 0, 1], [0, 0, 0, 1]]), b=MatGF2([1, 0, 0])),
-            BackSubsTestCase(
-                mat=MatGF2([[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]]),
-                b=MatGF2([0, 1, 1, 0, 0]),
-            ),
-            BackSubsTestCase(
-                mat=MatGF2([[1, 1, 1], [0, 0, 1], [0, 0, 0], [0, 0, 0]]),
-                b=MatGF2([0, 0, 0, 0]),
-            ),
-            BackSubsTestCase(
-                mat=MatGF2([[1, 0, 0], [0, 1, 1], [0, 0, 1], [0, 0, 0]]),
-                b=MatGF2([1, 0, 1, 0]),
-            ),
-            BackSubsTestCase(
-                mat=MatGF2([[1, 0, 1], [0, 1, 0], [0, 0, 1]]),
-                b=MatGF2([1, 1, 1]),
-            ),
-        )
-    )
-
-    return test_cases
-
-
 class TestPflow:
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_get_reduced_adj(self, test_case: OpenGraphTestCase) -> None:
@@ -467,12 +430,3 @@ class TestPflow:
             avg = sum(results) / n_shots
 
             assert avg == pytest.approx(1)
-
-    @pytest.mark.parametrize("test_case", prepare_test_back_subs())
-    def test_back_substitute(self, test_case: BackSubsTestCase) -> None:
-        mat = test_case.mat
-        b = test_case.b
-
-        x = _back_substitute(mat, b)
-
-        assert mat @ x == b

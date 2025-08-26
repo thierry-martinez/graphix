@@ -16,7 +16,7 @@ import networkx as nx
 import numpy as np
 
 from graphix.fundamentals import Axis, Plane
-from graphix.linalg import MatGF2
+from graphix.linalg import MatGF2, back_substitute
 from graphix.measurements import PauliMeasurement
 from graphix.sim.base_backend import NodeIndex
 
@@ -273,7 +273,7 @@ def _update_p_matrix(
         j_shift = n_oi_diff + j  # `n_oi_diff` is the column offset from the first block of K_{LS}
         mat = kls_matrix[:, :n_oi_diff]  # first block of K_{LS}, in row echelon form.
         b = kls_matrix[:, j_shift]
-        x = _back_substitute(mat, b)
+        x = back_substitute(mat, b)
         p_matrix[:, j] = x.data
 
 
@@ -360,41 +360,6 @@ def _update_kls_matrix(
         if new_pos != k:
             reorder(k, new_pos)
             kls_matrix.permute_row(row_permutation)
-
-
-def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
-    r"""Solve the linear system (LS) `mat @ x == b`.
-
-    Parameters
-    ----------
-    mat : MatGF2
-        Matrix with shape `(m, n)` containing the LS coefficients in row echelon form (REF).
-    b : MatGF2
-        Matrix with shape `(m,)` containing the constants column vector.
-
-    Returns
-    -------
-    x : MatGF2
-        Matrix with shape `(n,)` containing the solutions of the LS.
-
-    Notes
-    -----
-    This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
-    """
-    m, n = mat.data.shape
-    x = MatGF2(np.zeros(n, dtype=np.int_))
-
-    row_idxs = np.flatnonzero(~mat.data.any(axis=1))  # Row indices of the 0-rows
-    m_nonzero = row_idxs[0] if row_idxs.size else m  # Number of rows with non-zero elements
-
-    # We start solving from the first non-zero row and iterate backwards
-    for row, b_val in zip(mat.data[:m_nonzero][::-1], b.data[:m_nonzero][::-1]):
-        col_idxs = np.flatnonzero(row)  # Column indices with 1s
-        j = col_idxs[0]
-        # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} x_k because A in REF and x_j = 0
-        x[j] = b_val ^ np.bitwise_xor.reduce(x.data[col_idxs])
-
-    return x
 
 
 def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
