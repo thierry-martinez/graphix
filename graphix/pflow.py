@@ -10,6 +10,7 @@ References
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -36,6 +37,11 @@ class OpenGraphIndex:
         og (OpenGraph)
         non_inputs (NodeIndex) : Mapping between matrix indices and non-input nodes (labelled with integers).
         non_outputs (NodeIndex) : Mapping between matrix indices and non-output nodes (labelled with integers).
+        non_outputs_optim (NodeIndex) : Mapping between matrix indices and a subset of non-output nodes (labelled with integers).
+
+    Notes
+    -----
+    At initialization, `non_outputs_optim` is a copy of `non_outputs`. The nodes corresponding to zero-rows of the order-demand matrix are removed for calculating the P matrix more efficiently in the `:func: _find_pflow_general` routine.
     """
 
     def __init__(self, og: OpenGraph) -> None:
@@ -52,6 +58,9 @@ class OpenGraphIndex:
 
         self.non_outputs = NodeIndex()
         self.non_outputs.extend(nodes_non_output)
+
+        # Needs to be a deep copy because it may be modified during runtime.
+        self.non_outputs_optim = deepcopy(self.non_outputs)
 
 
 def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
@@ -79,7 +88,7 @@ def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
     row_tags = ogi.non_outputs
     col_tags = ogi.non_inputs
 
-    adj_red = MatGF2(np.zeros((len(row_tags), len(col_tags)), dtype=np.int_))
+    adj_red = np.zeros((len(row_tags), len(col_tags)), dtype=np.int_)
 
     for n1, n2 in graph.edges:
         for u, v in ((n1, n2), (n2, n1)):
@@ -87,7 +96,7 @@ def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
                 i, j = row_tags.index(u), col_tags.index(v)
                 adj_red[i, j] = 1
 
-    return adj_red
+    return MatGF2(adj_red)
 
 
 def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
@@ -202,14 +211,14 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     -----
     See Theorem 4.4, steps 8 - 12 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    n_no = len(ogi.non_outputs)  # number of columns of P matrix
-    n_oi_diff = len(ogi.og.outputs) - len(ogi.og.inputs)  # number of rows of P matrix
+    n_no = len(ogi.non_outputs)  # number of columns of P matrix.
+    n_oi_diff = len(ogi.og.outputs) - len(ogi.og.inputs)  # number of rows of P matrix.
+    n_no_optim = len(ogi.non_outputs_optim)  # number of rows and columns of the third block of the K_{LS} matrix.
 
     # Steps 8, 9 and 10
-    kils_matrix = nb_matrix[:, n_no:]  # N_R matrix
-    kils_matrix.concatenate(nb_matrix[:, :n_no], axis=1)  # Concatenate N_L matrix
-    kils_matrix.concatenate(MatGF2(np.eye(n_no, dtype=np.int_)), axis=1)  # Concatenate identity matrix
-
+    kils_matrix = nb_matrix[:, n_no:]  # N_R matrix.
+    kils_matrix.concatenate(nb_matrix[:, :n_no], axis=1)  # Concatenate N_L matrix.
+    kils_matrix.concatenate(MatGF2(np.eye(n_no_optim, dtype=np.int_)), axis=1)  # Concatenate identity matrix.
     kls_matrix = kils_matrix.gauss_elimination(ncols=n_oi_diff, copy=True)  # RREF form is not needed, only REF.
 
     # Step 11
@@ -224,7 +233,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
             return None
 
         _update_p_matrix(ogi, kls_matrix, p_matrix, solvable_nodes, n_oi_diff)  # Steps 12.b, 12.c
-        _update_kls_matrix(ogi, kls_matrix, kils_matrix, solvable_nodes, n_oi_diff, n_no)  # Step 12.d
+        _update_kls_matrix(ogi, kls_matrix, kils_matrix, solvable_nodes, n_oi_diff, n_no, n_no_optim)  # Step 12.d
         solved_nodes.update(solvable_nodes)
 
     return p_matrix
@@ -249,12 +258,15 @@ def _get_solvable_nodes(
 
     row_idxs = np.flatnonzero(
         ~kls_matrix.data[:, :n_oi_diff].any(axis=1)
-    )  # Row indices of the 0-rows in the first block of K_{LS}
+    )  # Row indices of the 0-rows in the first block of K_{LS}.
     if row_idxs.size:
         for v in non_outputs_set - solved_nodes:
-            j = n_oi_diff + ogi.non_outputs.index(v)  # `n_oi_diff` is the column offset from the first block of K_{LS}
+            j = n_oi_diff + ogi.non_outputs.index(v)  # `n_oi_diff` is the column offset from the first block of K_{LS}.
             if not kls_matrix.data[row_idxs, j].any():
                 solvable_nodes.add(v)
+    else:
+        # If the first block of K_{LS} does not have 0-rows, all non-solved nodes are solvable.
+        solvable_nodes = set(non_outputs_set - solved_nodes)
 
     return solvable_nodes
 
@@ -270,8 +282,8 @@ def _update_p_matrix(
     """
     for v in solvable_nodes:
         j = ogi.non_outputs.index(v)
-        j_shift = n_oi_diff + j  # `n_oi_diff` is the column offset from the first block of K_{LS}
-        mat = kls_matrix[:, :n_oi_diff]  # first block of K_{LS}, in row echelon form.
+        j_shift = n_oi_diff + j  # `n_oi_diff` is the column offset from the first block of K_{LS}.
+        mat = kls_matrix[:, :n_oi_diff]  # First block of K_{LS}, in row echelon form.
         b = kls_matrix[:, j_shift]
         x = back_substitute(mat, b)
         p_matrix[:, j] = x.data
@@ -284,6 +296,7 @@ def _update_kls_matrix(
     solvable_nodes: AbstractSet[int],
     n_oi_diff: int,
     n_no: int,
+    n_no_optim: int,
 ) -> None:
     """Update `kls_matrix`.
 
@@ -291,7 +304,7 @@ def _update_kls_matrix(
 
     See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    shift = n_oi_diff + n_no  # `n_oi_diff` + `n_no` is the column offset from the first two blocks of K_{LS}
+    shift = n_oi_diff + n_no  # `n_oi_diff` + `n_no` is the column offset from the first two blocks of K_{LS}.
     row_permutation: list[int]
 
     def reorder(old_pos: int, new_pos: int) -> None:  # Used in step 12.d.vi
@@ -305,61 +318,69 @@ def _update_kls_matrix(
         reorder(2, -1) -> [2, 0, 1, 3, 4]
         ```
         """
-        val = row_permutation.pop(old_pos)  # TODO: inefficient, do inplace swap, check linalg.swap_row
+        val = row_permutation.pop(old_pos)
         row_permutation.insert(new_pos + (new_pos < old_pos), val)
 
     for v in solvable_nodes:
-        # Step 12.d.ii
-        j = ogi.non_outputs.index(v)
-        j_shift = shift + j
-        row_idxs = np.flatnonzero(
-            kls_matrix.data[:, j_shift]
-        ).tolist()  # Row indices with 1s in column of node v in third block.
-        k = row_idxs.pop()  # TODO: Could `row_idxs` be empty ?
+        if (
+            v in ogi.non_outputs_optim
+        ):  # if `v` corresponded to a zero row in K_{LS}, it was not present in `kls_matrix`, so there's no need to do Gaussian elimination for that vertex.
+            # Step 12.d.ii
+            j = ogi.non_outputs_optim.index(v)
+            j_shift = shift + j
+            row_idxs = np.flatnonzero(
+                kls_matrix.data[:, j_shift]
+            ).tolist()  # Row indices with 1s in column of node `v` in third block.
 
-        # Step 12.d.iii
-        kls_matrix[row_idxs] += kls_matrix[k]  # Adding a row to previous rows preserves REF.
+            # `row_idxs` can't be empty:
+            # The third block of K_{LS} is initially the identity matrix, so all columns have initially a 1. Row permutations and row additions in the Gaussian elimination routine can't remove all 1s from a given column.
+            k = row_idxs.pop()
 
-        # Step 12.d.iv
-        kls_matrix[k] += kils_matrix[j]  # Row `k` may now break REF.
+            # Step 12.d.iii
+            kls_matrix[row_idxs] += kls_matrix[k]  # Adding a row to previous rows preserves REF.
 
-        # Step 12.d.v
-        pivots = []  # Store pivots for next step.
-        for i, row in enumerate(kls_matrix.data):
-            if i != k:
-                col_idxs = np.flatnonzero(row[:n_oi_diff])  # Column indices with 1s in first block.
-                if col_idxs.size == 0:
-                    # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
-                    break
-                pivots.append(p := col_idxs[0])
-                if kls_matrix[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
-                    kls_matrix[k] += kls_matrix[i]
+            # Step 12.d.iv
+            kls_matrix[k] += kils_matrix[j]  # Row `k` may now break REF.
 
-        row_permutation = list(range(n_no))  # Row indices of `kls_matrix`.
-        n_pivots = len(pivots)
+            # Step 12.d.v
+            pivots = []  # Store pivots for next step.
+            for i, row in enumerate(kls_matrix.data):
+                if i != k:
+                    col_idxs = np.flatnonzero(row[:n_oi_diff])  # Column indices with 1s in first block.
+                    if col_idxs.size == 0:
+                        # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
+                        break
+                    pivots.append(p := col_idxs[0])
+                    if kls_matrix[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
+                        kls_matrix[k] += kls_matrix[i]
 
-        col_idxs = np.flatnonzero(kls_matrix.data[k, :n_oi_diff])
-        pk = col_idxs[0] if col_idxs.size else None  # Pivot of row `k`.
+            row_permutation = list(range(n_no_optim))  # Row indices of `kls_matrix`.
+            n_pivots = len(pivots)
 
-        if pk and k >= n_pivots:  # Row `k` is non-zero in the FB (first block) and it's among zero rows.
-            # Find row `new_pos` s.t. `pivots[new_pos] <= pk < pivots[new_pos+1]`.
-            new_pos = (
-                int(np.argmax(np.array(pivots) > pk) - 1) if pivots else -1
-            )  # `pivots` can be empty. If so, we bring row `k` to the top since it's non-zero.
-        elif pk:  # Row `k` is non-zero in the FB and it's among non-zero rows.
-            # Find row `new_pos` s.t. `pivots[new_pos] <= pk < pivots[new_pos+1]`
-            new_pos = int(np.argmax(np.array(pivots) > pk) - 1)
-            # We skipped row `k` in loop of step 12.d.v, so `pivots[j]` can be the pivot of row `j` or `j+1`.
-            if new_pos >= k:
-                new_pos += 1
-        elif k < n_pivots:  # Row `k` is zero in the first block and it's among non-zero rows.
-            new_pos = n_pivots  # Move row `k` to the top of the zeros block (i.e., below the row of the last pivot).
-        else:  # Row `k` is zero in the first block and it's among zero rows.
-            new_pos = k  # Do nothing.
+            col_idxs = np.flatnonzero(kls_matrix.data[k, :n_oi_diff])
+            pk = col_idxs[0] if col_idxs.size else None  # Pivot of row `k`.
 
-        if new_pos != k:
-            reorder(k, new_pos)
-            kls_matrix.permute_row(row_permutation)
+            if pk and k >= n_pivots:  # Row `k` is non-zero in the FB (first block) and it's among zero rows.
+                # Find row `new_pos` s.t. `pivots[new_pos] <= pk < pivots[new_pos+1]`.
+                new_pos = (
+                    int(np.argmax(np.array(pivots) > pk) - 1) if pivots else -1
+                )  # `pivots` can be empty. If so, we bring row `k` to the top since it's non-zero.
+            elif pk:  # Row `k` is non-zero in the FB and it's among non-zero rows.
+                # Find row `new_pos` s.t. `pivots[new_pos] <= pk < pivots[new_pos+1]`
+                new_pos = int(np.argmax(np.array(pivots) > pk) - 1)
+                # We skipped row `k` in loop of step 12.d.v, so `pivots[j]` can be the pivot of row `j` or `j+1`.
+                if new_pos >= k:
+                    new_pos += 1
+            elif k < n_pivots:  # Row `k` is zero in the first block and it's among non-zero rows.
+                new_pos = (
+                    n_pivots  # Move row `k` to the top of the zeros block (i.e., below the row of the last pivot).
+                )
+            else:  # Row `k` is zero in the first block and it's among zero rows.
+                new_pos = k  # Do nothing.
+
+            if new_pos != k:
+                reorder(k, new_pos)
+                kls_matrix.permute_row(row_permutation)
 
 
 def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
@@ -390,30 +411,47 @@ def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
 
     See Theorem 4.4 and Algorithm 3 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
+    n_no = len(ogi.non_outputs)
+    n_oi_diff = len(ogi.og.outputs) - len(ogi.og.inputs)
+
     # Steps 1 and 2
     flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
 
     # Steps 3 and 4
-    correction_matrix_0 = flow_demand_matrix.right_inverse()  # C0 matrix
+    correction_matrix_0 = flow_demand_matrix.right_inverse()  # C0 matrix.
     if correction_matrix_0 is None:
         return None  # The flow-demand matrix is not invertible, therefore there's no flow.
 
     # Steps 5, 6 and 7
-    ker_flow_demand_matrix = flow_demand_matrix.null_space().transpose()  # F matrix
+    ker_flow_demand_matrix = flow_demand_matrix.null_space().transpose()  # F matrix.
     c_prime_matrix = correction_matrix_0.copy()
     c_prime_matrix.concatenate(ker_flow_demand_matrix, axis=1)
-    nb_matrix = order_demand_matrix @ c_prime_matrix
 
-    # Steps 8 - 12
-    if (p_matrix := _get_p_matrix(ogi, nb_matrix)) is None:
-        return None
+    row_idxs = np.flatnonzero(order_demand_matrix.data.any(axis=1))  # Row indices of the non-zero rows.
+
+    if row_idxs.size:
+        # The p-matrix finding algorithm runs on the `order_demand_matrix` without the zero rows.
+        # This optimization is allowed because:
+        #   - The zero rows remain zero after the change of basis (multiplication by `c_prime_matrix`).
+        #   - The zero rows remain zero after gaussian elimination.
+        #   - Removing the zero rows does not change the solvability condition of the open graph nodes.
+        nb_matrix_optim = order_demand_matrix[row_idxs] @ c_prime_matrix
+        for i in set(range(order_demand_matrix.data.shape[0])).difference(row_idxs):
+            ogi.non_outputs_optim.remove(ogi.non_outputs[i])  # Update the node-index mapping.
+
+        # Steps 8 - 12
+        if (p_matrix := _get_p_matrix(ogi, nb_matrix_optim)) is None:
+            return None
+    else:
+        # If all rows of `order_demand_matrix` are zero, any matrix will solve the associated linear system of equations.
+        p_matrix = MatGF2(np.zeros((n_oi_diff, n_no), dtype=np.int_))
 
     # Step 13
-    cb_matrix = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int_))
+    cb_matrix = MatGF2(np.eye(n_no, dtype=np.int_))
     cb_matrix.concatenate(p_matrix, axis=0)
 
     correction_matrix = c_prime_matrix @ cb_matrix
-    ordering_matrix = nb_matrix @ cb_matrix
+    ordering_matrix = order_demand_matrix @ c_prime_matrix @ cb_matrix
 
     return correction_matrix, ordering_matrix
 
@@ -487,7 +525,7 @@ def _cnc_matrices2pflow(
     if (topo_gen := _get_topological_order(ordering_matrix)) is None:
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
-    l_k = dict.fromkeys(ogi.og.outputs, 0)  # Output nodes are always in layer 0
+    l_k = dict.fromkeys(ogi.og.outputs, 0)  # Output nodes are always in layer 0.
 
     # If m >_c n, with >_c the flow order for two nodes m, n, then layer(n) > layer(m).
     # Therefore, we iterate the topological sort of the graph in _reverse_ order to obtain the order of measurements.

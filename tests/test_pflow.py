@@ -362,6 +362,59 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
         )
     )
 
+    # Open graph with only Pauli measurements and nI != nO
+    def get_og_11() -> OpenGraph:
+        """Return an open graph without Pauli flow and unequal number of outputs and inputs."""
+        graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)])
+        inputs = [0, 1]
+        outputs = [5, 6, 8]
+        meas = {
+            0: Measurement(0, Plane.XY),
+            1: Measurement(0, Plane.XY),
+            2: Measurement(0, Plane.XZ),
+            3: Measurement(0, Plane.XY),
+            4: Measurement(0.5, Plane.XY),
+            7: Measurement(0, Plane.YZ),
+        }
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_11()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=False,
+        )
+    )
+
+    # Open graph with only Pauli measurements and nI != nO
+    def get_og_12() -> OpenGraph:
+        """Return an open graph with Pauli flow and unequal number of outputs and inputs. Even though all nodes are Pauli-measured, open graph has flow because none of them are inputs."""
+        graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)])
+        outputs = [5, 6, 8]
+        meas = {
+            0: Measurement(0, Plane.XZ),
+            1: Measurement(0, Plane.XZ),
+            2: Measurement(0, Plane.XZ),
+            3: Measurement(0, Plane.XZ),
+            4: Measurement(0, Plane.XZ),
+            7: Measurement(0, Plane.XZ),
+        }
+
+        return OpenGraph(inside=graph, inputs=[], outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_12()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=True,
+        )
+    )
+
     return test_cases
 
 
