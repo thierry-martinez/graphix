@@ -228,9 +228,9 @@ class TestLinAlg:
         assert len(kernel) == kernel_dim
 
     @pytest.mark.parametrize("test_case", prepare_test_matrix())
-    def test_right_inverse(self, test_case: LinalgTestCase) -> None:
+    def test_right_inverse(self, benchmark: BenchmarkFixture, test_case: LinalgTestCase) -> None:
         mat = test_case.matrix
-        rinv = mat.right_inverse()
+        rinv = benchmark(mat.right_inverse)
 
         if test_case.right_invertible:
             assert rinv is not None
