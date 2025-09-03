@@ -376,8 +376,21 @@ class MatGF2:
         -------
         MatGF2
             The rows of the basis matrix are the basis vectors that span the null space. The number of rows of the basis matrix is the dimension of the null space.
+
+        Notes
+        -----
+        This implementation appear to be more efficient than `:func:galois.GF2.null_space`.
         """
-        return MatGF2(galois.GF2(self.data).null_space())
+        m, n = self.data.shape
+
+        ident = galois.GF2.Identity(n)
+        ref = MatGF2(galois.GF2(np.hstack([self.data.T, ident])))
+        ref.gauss_elimination(ncols=m)
+        row_idxs = np.flatnonzero(
+            ~ref.data[:, :m].any(axis=1)
+        )  # Row indices of the 0-rows in the first block of `ref`.
+
+        return ref[row_idxs, m:]
 
     def transpose(self) -> MatGF2:
         r"""Return transpose of the matrix."""
