@@ -18,10 +18,13 @@ from graphix.pflow import (
     _get_reduced_adj,
     find_pflow,
 )
+from graphix.random_objects import rand_circuit
 from graphix.states import PlanarState
+from tests.conftest import fx_rng
 
 if TYPE_CHECKING:
     from numpy.random import Generator
+    from pytest_benchmark import BenchmarkFixture
 
 
 class OpenGraphTestCase(NamedTuple):
@@ -30,6 +33,47 @@ class OpenGraphTestCase(NamedTuple):
     flow_demand_mat: MatGF2 | None
     order_demand_mat: MatGF2 | None
     has_pflow: bool
+
+
+def get_og_rndcircuit(depth: int, n_qubits: int, n_inputs: int | None = None) -> OpenGraph:
+    """Return an open graph from a random circuit.
+
+    Parameters
+    ----------
+    depth : int
+        Circuit depth of the random circuits for generating open graphs.
+    n_qubits : int
+        Number of qubits in the random circuits for generating open graphs. It controls the number of outputs.
+    n_inputs : int | None
+        Optional (default to `None`). Maximum number of inputs in the returned open graph. The returned open graph is the open graph generated from the random circuit where `n_qubits - n_inputs` nodes have been removed from the input-nodes set. This operation does not change the flow properties of the graph.
+
+    Returns
+    -------
+    OpenGraph
+        Open graph with causal flow.
+    """
+    circuit = rand_circuit(n_qubits, depth, fx_rng._fixture_function())
+    pattern = circuit.transpile().pattern
+    _, edges = pattern.get_graph()
+    graph: nx.Graph[int] = nx.Graph(edges)
+
+    angles = pattern.get_angles()
+    planes = pattern.get_meas_plane()
+    meas = {node: Measurement(angle, planes[node]) for node, angle in angles.items()}
+
+    og = OpenGraph(
+        inside=graph,
+        inputs=pattern.input_nodes,
+        outputs=pattern.output_nodes,
+        measurements=meas,
+    )
+
+    if n_inputs is not None:
+        ni_remove = max(0, n_qubits - n_inputs)
+        for i in range(ni_remove):
+            og.inputs.remove(i)
+
+    return og
 
 
 def prepare_test_og() -> list[OpenGraphTestCase]:
@@ -418,6 +462,22 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
     return test_cases
 
 
+def prepare_benchmark_og() -> list[OpenGraphTestCase]:
+    test_cases: list[OpenGraphTestCase] = []
+
+    # Open graph from random circuit
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_rndcircuit(depth=20, n_qubits=7, n_inputs=1)),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=True,
+        )
+    )
+    return test_cases
+
+
 class TestPflow:
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_get_reduced_adj(self, test_case: OpenGraphTestCase) -> None:
@@ -483,3 +543,14 @@ class TestPflow:
             avg = sum(results) / n_shots
 
             assert avg == pytest.approx(1)
+
+    @pytest.mark.parametrize("test_case", prepare_benchmark_og())
+    def test_benchmark_pflow(self, benchmark: BenchmarkFixture, test_case: OpenGraphTestCase) -> None:
+        og = test_case.ogi.og
+
+        pflow = benchmark(find_pflow, og)
+
+        if not test_case.has_pflow:
+            assert pflow is None
+        else:
+            assert pflow is not None

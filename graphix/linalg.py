@@ -6,6 +6,7 @@ import galois
 import numpy as np
 import numpy.typing as npt
 import sympy as sp
+from numba import njit
 
 
 class MatGF2:
@@ -444,17 +445,40 @@ def back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     -----
     This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
     """
-    m, n = mat.data.shape
-    x = MatGF2(np.zeros(n, dtype=np.int_))
+    return MatGF2(_solve_f2_linear_system(mat.data, b.data))
 
-    row_idxs = np.flatnonzero(~mat.data.any(axis=1))  # Row indices of the 0-rows
-    m_nonzero = row_idxs[0] if row_idxs.size else m  # Number of rows with non-zero elements
 
-    # We start solving from the first non-zero row and iterate backwards
-    for row, b_val in zip(mat.data[:m_nonzero][::-1], b.data[:m_nonzero][::-1]):
-        col_idxs = np.flatnonzero(row)  # Column indices with 1s
-        j = col_idxs[0]
-        # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} x_k because A in REF and x_j = 0
-        x[j] = b_val ^ np.bitwise_xor.reduce(x.data[col_idxs])
+@njit
+def _solve_f2_linear_system(mat_data: npt.NDArray[np.uint8], b_data: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+    m, n = mat_data.shape
+    x = np.zeros(n, dtype=np.uint8)
+
+    # Find first row that is all-zero
+    for i in range(m):
+        for j in range(n):
+            if mat_data[i, j] == 1:
+                break  # Row is not zero → go to next row
+        else:
+            m_nonzero = i  # No break: this row is all-zero
+            break
+    else:
+        m_nonzero = m
+
+    # Backward substitution from row m_nonzero - 1 to 0
+    for i in range(m_nonzero - 1, -1, -1):
+        # Find first non-zero column in row i
+        pivot = -1
+        for j in range(n):
+            if mat_data[i, j] == 1:
+                pivot = j
+                break
+
+        # Sum x_k for k such that mat_data[i, k] == 1
+        acc = 0
+        for k in range(pivot, n):
+            if mat_data[i, k] == 1:
+                acc ^= x[k]
+
+        x[pivot] = b_data[i] ^ acc
 
     return x
