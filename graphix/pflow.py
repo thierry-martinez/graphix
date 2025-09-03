@@ -451,7 +451,7 @@ def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
     cb_matrix.concatenate(p_matrix, axis=0)
 
     correction_matrix = c_prime_matrix @ cb_matrix
-    ordering_matrix = order_demand_matrix @ c_prime_matrix @ cb_matrix
+    ordering_matrix = order_demand_matrix @ correction_matrix
 
     return correction_matrix, ordering_matrix
 
