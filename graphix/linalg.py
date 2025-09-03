@@ -355,7 +355,8 @@ class MatGF2:
 
         ident = galois.GF2.Identity(m)
         aug = galois.GF2(np.hstack([self.data, ident]))
-        red = aug.row_reduce(ncols=n)  # Reduced row echelon form
+        # red = aug.row_reduce(ncols=n)  # Reduced row echelon form
+        red = MatGF2(aug).row_reduce(ncols=n).data
 
         # Check that rank of right block is equal to the number of rows.
         # We don't use `MatGF2.get_rank()` to avoid row-reducing twice.
@@ -397,7 +398,7 @@ class MatGF2:
         return MatGF2(self.data.T)
 
     def gauss_elimination(self, ncols: int | None = None, copy: bool = False) -> MatGF2:
-        """Return row echelon form (REF) by performing Gaussian elimination form.
+        """Return row echelon form (REF) by performing Gaussian elimination.
 
         Parameters
         ----------
@@ -410,7 +411,7 @@ class MatGF2:
         Returns
         -------
         mat_ref: MatGF2
-            The matrix in row reduced form.
+            The matrix in row echelon form.
 
         Adapted from `:func: galois.FieldArray.row_reduce`, which renders the matrix in row-reduced echelon form (RREF) and specialized for GF(2).
         """
@@ -428,8 +429,54 @@ class MatGF2:
             # Swap row `p` and `i`. The pivot is now located at row `p`.
             mat_ref.swap_row(i, p)
 
-            # Force zeros below the pivot by xor-ing with the pivot row
+            # Force zeros BELOW the pivot by xor-ing with the pivot row
             row_idxs = np.flatnonzero(mat_ref.data[p + 1 :, j]) + (p + 1)
+            mat_ref.data[row_idxs, :] ^= mat_ref.data[p, :]
+
+            p += 1
+            if p == mat_ref.data.shape[0]:
+                break
+
+        return mat_ref
+
+    def row_reduce(self, ncols: int | None = None, copy: bool = False) -> MatGF2:
+        """Return row-reduced echelon form (RREF) by performing Gaussian elimination.
+
+        Parameters
+        ----------
+        n_cols: int (optional)
+            Number of columns over which to perform Gaussian elimination. The default is `None` which represents the number of columns of the matrix.
+
+        copy: bool (optional)
+            If `True`, the RREF matrix is copied into a new instance, otherwise `self` is modified. Defaults to `False`.
+
+        Returns
+        -------
+        mat_ref: MatGF2
+            The matrix in row-reduced echelon form.
+
+        Adapted from `:func: galois.FieldArray.row_reduce`, which renders the matrix in row-reduced echelon form (RREF) and specialized for GF(2).
+        """
+        ncols = self.data.shape[1] if ncols is None else ncols
+        mat_ref = MatGF2(self.data) if copy else self
+        p = 0  # The pivot
+
+        for j in range(ncols):
+            # Find a pivot in column `j` at or below row `p`
+            row_idxs = np.flatnonzero(mat_ref.data[p:, j])
+            if row_idxs.size == 0:
+                continue
+            i = p + row_idxs[0]  # Row with a pivot
+
+            # Swap row `p` and `i`. The pivot is now located at row `p`.
+            mat_ref.swap_row(i, p)
+
+            # Force zeros BELOW and ABOVE the pivot by xor-ing with the pivot row
+            # The following three lines are the only difference with respect to `:func: MatGF2.gauss_elimination`.
+            mat_ref.data[p, j] = 0  # set pivot to 0 temporarily to be skipped by `np.flatnonzero`
+            row_idxs = np.flatnonzero(mat_ref.data[:, j])
+            mat_ref.data[p, j] = 1  # set pivot back to 1
+
             mat_ref.data[row_idxs, :] ^= mat_ref.data[p, :]
 
             p += 1
