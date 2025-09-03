@@ -275,6 +275,18 @@ class TestLinAlg:
         if mat_linv is not None:
             assert mat_linv @ mat_ge == mat
 
+    @pytest.mark.parametrize("test_case", prepare_test_matrix())
+    def test_null_space(self, benchmark: BenchmarkFixture, test_case: LinalgTestCase) -> None:
+        mat = test_case.matrix
+        kernel_dim = test_case.kernel_dim
+
+        kernel = benchmark(mat.null_space)
+
+        assert kernel_dim == kernel.data.shape[0]
+        for v in kernel:
+            p = mat @ v.transpose()
+            assert ~p.data.any()
+
     @pytest.mark.parametrize("test_case", prepare_test_back_subs())
     def test_back_substitute(self, benchmark: BenchmarkFixture, test_case: BackSubsTestCase) -> None:
         mat = test_case.mat
