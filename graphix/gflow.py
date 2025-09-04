@@ -48,7 +48,7 @@ def find_gflow(
     meas_planes: Mapping[int, Plane],
     mode: str = "single",  # noqa: ARG001 Compatibility with old API
 ) -> tuple[dict[int, set[int]], dict[int, int]] | tuple[None, None]:
-    """Return a maximally delayed general flow (gflow) of the input open graph if it exists.
+    r"""Return a maximally delayed general flow (gflow) of the input open graph if it exists.
 
     Parameters
     ----------
@@ -59,7 +59,7 @@ def find_gflow(
     oset: AbstractSet[int]
         Set of output nodes.
     meas_planes: Mapping[int, Plane]
-        Measurement planes for each qubit. `m`eas_planes[i] is the measurement plane for qubit `i`.
+        Measurement planes for each qubit. `meas_planes[i]` is the measurement plane for qubit `i`.
     mode: str
         Deprecated. Reminiscent of old API, it will be removed in future versions.
 
@@ -231,7 +231,7 @@ def find_pauliflow(
     meas_angles: Mapping[int, ExpressionOrFloat],
     mode: str = "single",  # noqa: ARG001 Compatibility with old API
 ) -> tuple[dict[int, set[int]], dict[int, int]] | tuple[None, None]:
-    """Return a maximally delayed Pauli flow of the input open graph if it exists.
+    r"""Return a maximally delayed Pauli flow of the input open graph if it exists.
 
     Parameters
     ----------

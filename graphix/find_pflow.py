@@ -25,6 +25,8 @@ from graphix.sim.base_backend import NodeIndex
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
 
+    import numpy.typing as npt
+
     from graphix.opengraph import OpenGraph
 
 
@@ -174,7 +176,7 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
     -----
     - The ordering matrix is defined as the product of the order-demand matrix :math:`N` and the correction matrix.
 
-    - The function only returns `None` when the flow-demand matrix is not invertible (meaning that `ogi` does not have Pauli flow). The condition that the ordering matrix :math:`NC` must encode a directed acyclic graph (DAG) is verified in a subsequent step by `:func: _get_topological_order`.
+    - The function only returns `None` when the flow-demand matrix is not invertible (meaning that `ogi` does not have Pauli flow). The condition that the ordering matrix :math:`NC` must encode a directed acyclic graph (DAG) is verified in a subsequent step by `:func: _get_topological_generations`.
 
     See Definitions 3.4, 3.5 and 3.6, Theorems 3.1 and 4.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
@@ -457,7 +459,7 @@ def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
     return correction_matrix, ordering_matrix
 
 
-def _get_topological_order(ordering_matrix: MatGF2) -> list[list[int]] | None:
+def _get_topological_generations(ordering_matrix: MatGF2) -> list[list[int]] | None:
     """Stratify the directed acyclic graph (DAG) represented by the ordering matrix into generations.
 
     Parameters
@@ -473,15 +475,60 @@ def _get_topological_order(ordering_matrix: MatGF2) -> list[list[int]] | None:
     or `None`
         if `ordering_matrix` is not a DAG.
     """
-    # NetworkX uses the convention that a non-zero A(i,j) element represents a link i -> j.
-    # We use the opposite convention, hence the transpose.
-    dag = nx.from_numpy_array(ordering_matrix.data.T, create_using=nx.DiGraph)
-
-    topo_gen = nx.topological_generations(dag)
+    topo_gen = _topological_generations(ordering_matrix.data)  # Returns a generator.
     try:
         return list(topo_gen)
     except nx.NetworkXUnfeasible:
         return None
+
+
+def _topological_generations(adj_mat: npt.NDArray[np.uint8]):
+    """Adaptation of `:func: networkx.algorithms.dag.topological_generations`. See notes for further information.
+
+    Parameters
+    ----------
+    adj_mat : array
+        Matrix encoding adjacency matrix of the graph. Here we use the convention that the element `adj_mat[i,j]` represents a link `j -> i`. NetworkX uses the opposite convention.
+
+    Yields
+    ------
+    sets of nodes
+        Yields sets of nodes representing each generation.
+
+    Raises
+    ------
+    networkx.NetworkXUnfeasible
+        If `adj_mat` is not a DAG.
+
+    Notes
+    -----
+    We rewrite the NetworkX algorithm so that it works directly on the adjacency matrix (which is the output of the Pauli-flow finding algorithm) instead of a `:class: nx.DiGraph` object. This avoids calling the function `nx.from_numpy_array` which are expensive for certain graph instances.
+
+    Contrary to the implementation in NetworkX, we do not check that the graph is not changed while the returned iterator is being processed.
+    """
+    indegree_map = {}
+    zero_indegree = []
+    neighbors = {node: set(np.flatnonzero(row).astype(int)) for node, row in enumerate(adj_mat.T)}
+    for node, col in enumerate(adj_mat):
+        parents = np.flatnonzero(col)
+        if parents.size:
+            indegree_map[node] = parents.size
+        else:
+            zero_indegree.append(node)
+
+    while zero_indegree:
+        this_generation = zero_indegree
+        zero_indegree = []
+        for node in this_generation:
+            for child in neighbors[node]:
+                indegree_map[child] -= 1
+                if indegree_map[child] == 0:
+                    zero_indegree.append(child)
+                    del indegree_map[child]
+        yield this_generation
+
+    if indegree_map:
+        raise nx.NetworkXUnfeasible("Graph contains a cycle")
 
 
 def _cnc_matrices2pflow(
@@ -523,7 +570,7 @@ def _cnc_matrices2pflow(
 
     # Calculation of the partial ordering
 
-    if (topo_gen := _get_topological_order(ordering_matrix)) is None:
+    if (topo_gen := _get_topological_generations(ordering_matrix)) is None:
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
     l_k = dict.fromkeys(ogi.og.outputs, 0)  # Output nodes are always in layer 0.
