@@ -418,7 +418,7 @@ class MatGF2:
         ncols = self.data.shape[1] if ncols is None else ncols
         mat_ref = MatGF2(self.data) if copy else self
 
-        return MatGF2(_gaussian_elimination_jit(mat_ref.data, ncols=ncols))
+        return MatGF2(_elimination_jit(mat_ref.data, ncols=ncols, full_reduce=False))
 
     def row_reduce(self, ncols: int | None = None, copy: bool = False) -> MatGF2:
         """Return row-reduced echelon form (RREF) by performing Gaussian elimination.
@@ -441,7 +441,7 @@ class MatGF2:
         ncols = self.data.shape[1] if ncols is None else ncols
         mat_ref = MatGF2(self.data) if copy else self
 
-        return MatGF2(_row_reduce_jit(mat_ref.data, ncols=ncols))
+        return MatGF2(_elimination_jit(mat_ref.data, ncols=ncols, full_reduce=True))
 
 
 def back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
@@ -503,7 +503,7 @@ def _solve_f2_linear_system(mat_data: npt.NDArray[np.uint8], b_data: npt.NDArray
 
 
 @njit
-def _gaussian_elimination_jit(mat_data: npt.NDArray[np.uint8], ncols: int) -> npt.NDArray[np.uint8]:
+def _elimination_jit(mat_data: npt.NDArray[np.uint8], ncols: int, full_reduce: bool) -> npt.NDArray[np.uint8]:
     m, n = mat_data.shape
     p = 0  # Pivot
 
@@ -522,46 +522,18 @@ def _gaussian_elimination_jit(mat_data: npt.NDArray[np.uint8], ncols: int) -> np
                 mat_data[i, k] = mat_data[p, k]
                 mat_data[p, k] = tmp
 
-        # Force zeros BELOW the pivot by xor-ing with the pivot row
-        # In `:func: MatGF2.row_reduce` zeros are forced below and above.
-        for k in range(p + 1, m):
-            if mat_data[k, j] == 1:
-                for l in range(n):
-                    mat_data[k, l] ^= mat_data[p, l]
-
-        p += 1
-        if p == m:
-            break
-
-    return mat_data
-
-
-@njit
-def _row_reduce_jit(mat_data: npt.NDArray[np.uint8], ncols: int) -> npt.NDArray[np.uint8]:
-    m, n = mat_data.shape
-    p = 0  # Pivot
-
-    for j in range(ncols):
-        # Find a pivot in column `j` at or below row `p`.
-        for i in range(p, m):
-            if mat_data[i, j] == 1:
-                break  # `i` is a row with a pivot
+        if full_reduce:
+            # Force zeros BELOW and ABOVE the pivot by xor-ing with the pivot row
+            for k in range(m):
+                if mat_data[k, j] == 1 and k != p:
+                    for l in range(n):
+                        mat_data[k, l] ^= mat_data[p, l]
         else:
-            continue  # No break: column `j` does not have a pivot below row `p`.
-
-        # Swap row `p` and `i`. The pivot is now located at row `p`.
-        if i != p:
-            for k in range(n):
-                tmp = mat_data[i, k]
-                mat_data[i, k] = mat_data[p, k]
-                mat_data[p, k] = tmp
-
-        # Force zeros BELOW and ABOVE the pivot by xor-ing with the pivot row
-        # In `:func: MatGF2.gauss_elimination` zeros are forced only below.
-        for k in range(m):
-            if mat_data[k, j] == 1 and k != p:
-                for l in range(n):
-                    mat_data[k, l] ^= mat_data[p, l]
+            # Force zeros BELOW the pivot by xor-ing with the pivot row
+            for k in range(p + 1, m):
+                if mat_data[k, j] == 1:
+                    for l in range(n):
+                        mat_data[k, l] ^= mat_data[p, l]
 
         p += 1
         if p == m:
