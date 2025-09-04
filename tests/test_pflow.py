@@ -6,18 +6,18 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from graphix.fundamentals import Plane
-from graphix.generator import _pflow2pattern
-from graphix.linalg import MatGF2
-from graphix.measurements import Measurement
-from graphix.opengraph import OpenGraph
-from graphix.pflow import (
+from graphix.find_pflow import (
     OpenGraphIndex,
     _find_pflow_simple,
     _get_pflow_matrices,
     _get_reduced_adj,
     find_pflow,
 )
+from graphix.fundamentals import Plane
+from graphix.generator import _pflow2pattern
+from graphix.linalg import MatGF2
+from graphix.measurements import Measurement
+from graphix.opengraph import OpenGraph
 from graphix.random_objects import rand_circuit
 from graphix.states import PlanarState
 from tests.conftest import fx_rng

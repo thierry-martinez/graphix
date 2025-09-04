@@ -200,32 +200,10 @@ class TestLinAlg:
         assert not test_mat.is_canonical_form()
 
     @pytest.mark.parametrize("test_case", prepare_test_matrix())
-    def test_forward_eliminate(self, test_case: LinalgTestCase) -> None:
-        mat = test_case.matrix
-        answer = test_case.forward_eliminated
-        rhs_input = test_case.rhs_input
-        rhs_forward_elimnated = test_case.rhs_forward_eliminated
-        mat_elimnated, rhs, _, _ = mat.forward_eliminate(rhs_input)
-        assert np.all(mat_elimnated.data == answer)
-        assert np.all(rhs.data == rhs_forward_elimnated)
-
-    @pytest.mark.parametrize("test_case", prepare_test_matrix())
     def test_get_rank(self, test_case: LinalgTestCase) -> None:
         mat = test_case.matrix
         rank = test_case.rank
         assert mat.get_rank() == rank
-
-    @pytest.mark.parametrize("test_case", prepare_test_matrix())
-    def test_backward_substitute(self, test_case: LinalgTestCase) -> None:
-        mat = test_case.matrix
-        rhs_input = test_case.rhs_input
-        x = test_case.x
-        kernel_dim = test_case.kernel_dim
-        mat_eliminated, rhs_eliminated, _, _ = mat.forward_eliminate(rhs_input)
-        x, kernel = mat_eliminated.backward_substitute(rhs_eliminated)
-        if x is not None:
-            assert np.all(x == x)  # noqa: PLR0124
-        assert len(kernel) == kernel_dim
 
     @pytest.mark.parametrize("test_case", prepare_test_matrix())
     def test_right_inverse(self, benchmark: BenchmarkFixture, test_case: LinalgTestCase) -> None:

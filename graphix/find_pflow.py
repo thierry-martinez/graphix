@@ -1,6 +1,7 @@
 """Pauli flow finding algorithm.
 
-This module implements the algorithm presented in [1]. For a given labelled open graph (G, I, O, meas_plane), this algorithm finds a Pauli flow [2] in polynomial time with the number of nodes, :math:`O(N^3)`.
+This module implements the algorithm presented in [1]. For a given labelled open graph (G, I, O, meas_plane), this algorithm finds a maximally delayed Pauli flow [2] in polynomial time with the number of nodes, :math:`O(N^3)`.
+If the input graph does not have Pauli measurements, the algorithm returns a general flow (gflow) if it exists by definition.
 
 References
 ----------
@@ -554,7 +555,7 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
     Returns
     -------
     pf : dict[int, set[int]]
-        Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
+        Pauli flow correction function. `pf[i]` is the set of qubits to be corrected for the measurement of qubit `i`.
     l_k : dict[int, int]
         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
 
@@ -583,20 +584,3 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
     pf, l_k = pflow
 
     return pf, l_k
-
-
-# def is_pflow_valid(og: OpenGraph, pf: Mapping[int, set[int]], l_k: Mapping[int, int]) -> bool:
-#     """Verify if a given Pauli flow is correct by checking the Pauli flow conditions (P1 - P9).
-
-#     See Definition 5 in Browne et al., NJP 9, 250 (2007).
-
-#     Returns
-#     -------
-#     pf: dict[int, set[int]]
-#         Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
-#     l_k: dict[int, int]
-#         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
-
-#     """
-
-#     return False

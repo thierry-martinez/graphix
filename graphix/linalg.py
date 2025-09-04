@@ -5,7 +5,6 @@ from __future__ import annotations
 import galois
 import numpy as np
 import numpy.typing as npt
-import sympy as sp
 from numba import njit
 
 
@@ -228,110 +227,6 @@ class MatGF2:
         """
         mat_a = galois.GF2(self.data).row_reduce() if not self.is_canonical_form() else self.data
         return int(np.sum(mat_a.any(axis=1)))
-
-    def forward_eliminate(self, b=None, copy=False) -> tuple[MatGF2, MatGF2, list[int], list[int]]:
-        r"""Forward eliminate the matrix.
-
-        |A B| --\ |I X|
-        |C D| --/ |0 0|
-        where X is an arbitrary matrix
-
-        Parameters
-        ----------
-        b: array_like(optional)
-            Left hand side of the system of equations. Defaults to None.
-        copy: bool(optional)
-            copy the matrix or not. Defaults to False.
-
-        Returns
-        -------
-        mat_a: MatGF2
-            forward eliminated matrix
-        b: MatGF2
-            forward eliminated right hand side
-        row_permutation: list
-            row permutation
-        col_permutation: list
-            column permutation
-        """
-        mat_a = MatGF2(self.data) if copy else self
-        if b is None:
-            b = np.zeros((mat_a.data.shape[0], 1), dtype=int)
-        b = MatGF2(b)
-        # Remember the row and column order
-        row_permutation = list(range(mat_a.data.shape[0]))
-        col_permutation = list(range(mat_a.data.shape[1]))
-
-        # Gauss-Jordan Elimination
-        max_rank = min(mat_a.data.shape)
-        for row in range(max_rank):
-            if mat_a.data[row, row] == 0:
-                pivot = mat_a.data[row:, row:].nonzero()
-                if len(pivot[0]) == 0:
-                    break
-                pivot_row = pivot[0][0] + row
-                if pivot_row != row:
-                    mat_a.swap_row(row, pivot_row)
-                    b.swap_row(row, pivot_row)
-                    former_row = row_permutation.index(row)
-                    former_pivot_row = row_permutation.index(pivot_row)
-                    row_permutation[former_row] = pivot_row
-                    row_permutation[former_pivot_row] = row
-                pivot_col = pivot[1][0] + row
-                if pivot_col != row:
-                    mat_a.swap_col(row, pivot_col)
-                    former_col = col_permutation.index(row)
-                    former_pivot_col = col_permutation.index(pivot_col)
-                    col_permutation[former_col] = pivot_col
-                    col_permutation[former_pivot_col] = row
-                assert mat_a.data[row, row] == 1
-            eliminate_rows = set(mat_a.data[:, row].nonzero()[0]) - {row}
-            for eliminate_row in eliminate_rows:
-                mat_a.data[eliminate_row, :] += mat_a.data[row, :]
-                b.data[eliminate_row, :] += b.data[row, :]
-        return mat_a, b, row_permutation, col_permutation
-
-    def backward_substitute(self, b) -> tuple[npt.NDArray, list[sp.Symbol]]:
-        """Backward substitute the matrix.
-
-        Parameters
-        ----------
-        b: array_like
-            right hand side of the system of equations
-
-        Returns
-        -------
-        x: sympy.MutableDenseMatrix
-            answer of the system of equations
-        kernels: list-of-sympy.Symbol
-            kernel of the matrix.
-            matrix x contains sympy.Symbol if the input matrix is not full rank.
-            nan-column vector means that there is no solution.
-        """
-        rank = self.get_rank()
-        b = MatGF2(b)
-        x = []
-        kernels = sp.symbols(f"x0:{self.data.shape[1] - rank}")
-        for col in range(b.data.shape[1]):
-            x_col = []
-            b_col = b.data[:, col]
-            if np.count_nonzero(b_col[rank:]) != 0:
-                x_col = [sp.nan for i in range(self.data.shape[1])]
-                x.append(x_col)
-                continue
-            for row in range(rank - 1, -1, -1):
-                sol = sp.true if b_col[row] == 1 else sp.false
-                kernel_index = np.nonzero(self.data[row, rank:])[0]
-                for k in kernel_index:
-                    sol ^= kernels[k]
-                x_col.insert(0, sol)
-            for row in range(rank, self.data.shape[1]):
-                x_col.append(kernels[row - rank])
-            x.append(x_col)
-
-        x = np.array(x).T
-
-        return x, kernels
 
     def right_inverse(self) -> MatGF2 | None:
         r"""Return any right inverse of the matrix.
