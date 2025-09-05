@@ -94,3 +94,4 @@ sphinx_gallery_conf = {
 }
 
 suppress_warnings = ["config.cache"]
+nitpick_ignore = [('py:class', 'type')]

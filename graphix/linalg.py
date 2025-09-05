@@ -1,28 +1,33 @@
-"""Algorithms for linear algebra."""
+"""Performant module for linear algebra on GF2 field."""
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import galois
 import numpy as np
-import numpy.typing as npt
 from numba import njit
+
+if TYPE_CHECKING:
+    import galois.typing as gt
+    import numpy.typing as npt
 
 
 class MatGF2:
     """Matrix on GF2 field."""
 
-    def __init__(self, data) -> None:
+    def __init__(self, data: gt.ElementLike | gt.ArrayLike | MatGF2) -> None:
         """Construct a matrix of GF2.
 
         Parameters
         ----------
-        data: array_like
-            input data
+        data : array_like
+            Input data
         """
-        if isinstance(data, MatGF2):
-            self.data = data.data
-        else:
+        if not isinstance(data, MatGF2):
             self.data = galois.GF2(data)
+        else:
+            self.data = data.data
 
     def __repr__(self) -> str:
         """Return the representation string of the matrix."""
@@ -38,27 +43,27 @@ class MatGF2:
             return NotImplemented
         return bool(np.all(self.data == other.data))
 
-    def __add__(self, other: npt.NDArray | MatGF2) -> MatGF2:
+    def __add__(self, other: gt.ElementLike | gt.ArrayLike | MatGF2) -> MatGF2:
         """Add two matrices."""
-        if isinstance(other, np.ndarray):
+        if not isinstance(other, MatGF2):
             other = MatGF2(other)
         return MatGF2(self.data + other.data)
 
-    def __sub__(self, other: npt.NDArray | MatGF2) -> MatGF2:
+    def __sub__(self, other: gt.ElementLike | gt.ArrayLike | MatGF2) -> MatGF2:
         """Substract two matrices."""
-        if isinstance(other, np.ndarray):
+        if not isinstance(other, MatGF2):
             other = MatGF2(other)
         return MatGF2(self.data - other.data)
 
-    def __mul__(self, other: npt.NDArray | MatGF2) -> MatGF2:
+    def __mul__(self, other: gt.ElementLike | gt.ArrayLike | MatGF2) -> MatGF2:
         """Compute the point-wise multiplication of two matrices."""
-        if isinstance(other, np.ndarray):
+        if not isinstance(other, MatGF2):
             other = MatGF2(other)
         return MatGF2(self.data * other.data)
 
-    def __matmul__(self, other: npt.NDArray | MatGF2) -> MatGF2:
+    def __matmul__(self, other: gt.ElementLike | gt.ArrayLike | MatGF2) -> MatGF2:
         """Multiply two matrices."""
-        if isinstance(other, np.ndarray):
+        if not isinstance(other, MatGF2):
             other = MatGF2(other)
         return MatGF2(self.data @ other.data)
 
@@ -66,98 +71,98 @@ class MatGF2:
         """Allow numpy-style slicing."""
         return MatGF2(self.data.__getitem__(key))
 
-    def __setitem__(self, key, value) -> None:
+    def __setitem__(self, key, value: gt.ElementLike | gt.ArrayLike | MatGF2) -> None:
         """Assign new value to data field.
 
-        Verification that `value` is a valid finite field element is done at the level of the `galois.GF2__setitem__` method.
+        Verification that `value` is a valid finite field element is done at the level of the `galois.GF2.__setitem__` method.
         """
         if isinstance(value, MatGF2):
             value = value.data
         self.data.__setitem__(key, value)
 
     def __bool__(self) -> bool:
-        """Define truthiness of `MatGF2` following galois (and, therefore, numpy style."""
+        """Define truthiness of `MatGF2` following galois (and, therefore, numpy) style."""
         return self.data.__bool__()
 
     def copy(self) -> MatGF2:
         """Return a copy of the matrix."""
         return MatGF2(self.data.copy())
 
-    def add_row(self, array_to_add=None, row=None) -> None:
+    def add_row(self, array_to_add: npt.NDArray[np.uint8] | None = None, row: int | None = None) -> None:
         """Add a row to the matrix.
 
         Parameters
         ----------
-        array_to_add: array_like(optional)
-            row to add. Defaults to None. if None, add a zero row.
-        row: int(optional)
-            index to add a new row. Defaults to None.
+        array_to_add : array_like (optional)
+            Row to add. Defaults to `None`. If `None`, add a zero row.
+        row : int (optional)
+            Index where the new row is added. Defaults to `None`. If `None`, row is added at the end of the matrix.
         """
         if row is None:
             row = self.data.shape[0]
         if array_to_add is None:
             array_to_add = np.zeros((1, self.data.shape[1]), dtype=int)
         array_to_add = array_to_add.reshape((1, self.data.shape[1]))
-        self.data = np.insert(self.data, row, array_to_add, axis=0)
+        self.data = galois.GF2(np.insert(self.data, row, array_to_add, axis=0))
 
-    def add_col(self, array_to_add=None, col=None) -> None:
+    def add_col(self, array_to_add: npt.NDArray[np.uint8] | None = None, col: int | None = None) -> None:
         """Add a column to the matrix.
 
         Parameters
         ----------
-        array_to_add: array_like(optional)
-            column to add. Defaults to None. if None, add a zero column.
-        col: int(optional)
-            index to add a new column. Defaults to None.
+        array_to_add : array_like (optional)
+            Column to add. Defaults to `None`. If `None`, add a zero column.
+        col : int (optional)
+            Index where the new column is added. Defaults to `None`. If `None`, column is added at the end of the matrix.
         """
         if col is None:
             col = self.data.shape[1]
         if array_to_add is None:
             array_to_add = np.zeros((1, self.data.shape[0]), dtype=int)
         array_to_add = array_to_add.reshape((1, self.data.shape[0]))
-        self.data = np.insert(self.data, col, array_to_add, axis=1)
+        self.data = galois.GF2(np.insert(self.data, col, array_to_add, axis=1))
 
     def concatenate(self, other: MatGF2, axis: int = 1) -> None:
         """Concatenate two matrices.
 
         Parameters
         ----------
-        other: MatGF2
-            matrix to concatenate
-        axis: int(optional)
-            axis to concatenate. Defaults to 1.
+        other : MatGF2
+            Matrix to concatenate.
+        axis: int (optional)
+            Axis along which concatenate. Defaults to 1.
         """
-        self.data = np.concatenate((self.data, other.data), axis=axis)
+        self.data = galois.GF2(np.concatenate((self.data, other.data), axis=axis))
 
     def remove_row(self, row: int) -> None:
         """Remove a row from the matrix.
 
         Parameters
         ----------
-        row: int
-            index to remove a row
+        row : int
+            Index of row to be removed.
         """
-        self.data = np.delete(self.data, row, axis=0)
+        self.data = galois.GF2(np.delete(self.data, row, axis=0))
 
     def remove_col(self, col: int) -> None:
         """Remove a column from the matrix.
 
         Parameters
         ----------
-        col: int
-            index to remove a column
+        col : int
+            Index of column to be removed.
         """
-        self.data = np.delete(self.data, col, axis=1)
+        self.data = galois.GF2(np.delete(self.data, col, axis=1))
 
     def swap_row(self, row1: int, row2: int) -> None:
         """Swap two rows.
 
         Parameters
         ----------
-        row1: int
-            row index
-        row2: int
-            row index
+        row1 : int
+            Row index.
+        row2 : int
+            Row index.
         """
         self.data[[row1, row2]] = self.data[[row2, row1]]
 
@@ -167,73 +172,49 @@ class MatGF2:
         Parameters
         ----------
         col1: int
-            column index
-        col2: int
-            column index
+            Column index.
+        col2 : int
+            Column index.
         """
         self.data[:, [col1, col2]] = self.data[:, [col2, col1]]
 
-    def permute_row(self, row_permutation) -> None:
+    def permute_row(self, row_permutation: npt.ArrayLike) -> None:
         """Permute rows.
 
         Parameters
         ----------
-        row_permutation: array_like
-            row permutation
+        row_permutation : array_like
+            Row permutation.
         """
         self.data = self.data[row_permutation, :]
 
-    def permute_col(self, col_permutation) -> None:
+    def permute_col(self, col_permutation: npt.ArrayLike) -> None:
         """Permute columns.
 
         Parameters
         ----------
-        col_permutation: array_like
-            column permutation
+        col_permutation : array_like
+            Column permutation
         """
         self.data = self.data[:, col_permutation]
-
-    def is_canonical_form(self) -> bool:
-        """Check if the matrix is in a canonical form (row reduced echelon form).
-
-        Returns
-        -------
-        bool: bool
-            True if the matrix is in canonical form
-        """
-        diag = self.data.diagonal()
-        nonzero_diag_index = diag.nonzero()[0]
-
-        rank = len(nonzero_diag_index)
-        for i in range(len(nonzero_diag_index)):
-            if diag[nonzero_diag_index[i]] == 0:
-                if np.count_nonzero(diag[i:]) != 0:
-                    break
-                return False
-
-        ref_array = MatGF2(np.diag(np.diagonal(self.data[:rank, :rank])))
-        if np.count_nonzero(self.data[:rank, :rank] - ref_array.data) != 0:
-            return False
-
-        return np.count_nonzero(self.data[rank:, :]) == 0
 
     def get_rank(self) -> int:
         """Get the rank of the matrix.
 
         Returns
         -------
-        int: int
-            rank of the matrix
+        int : int
+            Rank of the matrix.
         """
-        mat_a = galois.GF2(self.data).row_reduce() if not self.is_canonical_form() else self.data
-        return int(np.sum(mat_a.any(axis=1)))
+        mat_a = self.row_reduce()
+        return int(np.sum(mat_a.data.any(axis=1)))
 
     def right_inverse(self) -> MatGF2 | None:
         r"""Return any right inverse of the matrix.
 
         Returns
         -------
-        rinv: MatGF2
+        rinv : MatGF2
             Any right inverse of the matrix.
         or `None`
             If the matrix does not have a right inverse.
@@ -250,8 +231,7 @@ class MatGF2:
 
         ident = galois.GF2.Identity(m)
         aug = galois.GF2(np.hstack([self.data, ident]))
-        # red = aug.row_reduce(ncols=n)  # Reduced row echelon form
-        red = MatGF2(aug).row_reduce(ncols=n).data
+        red = MatGF2(aug).row_reduce(ncols=n).data  # Reduced row echelon form
 
         # Check that rank of right block is equal to the number of rows.
         # We don't use `MatGF2.get_rank()` to avoid row-reducing twice.
@@ -260,7 +240,7 @@ class MatGF2:
         rinv = galois.GF2.Zeros((n, m))
 
         for i, row in enumerate(red):
-            j = np.flatnonzero(row)[0]  # Column index corresponding to the leading 1 in row i
+            j = np.flatnonzero(row)[0]  # Column index corresponding to the leading 1 in row `i`.
             rinv[j, :] = red[i, n:]
 
         return MatGF2(rinv)
@@ -297,18 +277,16 @@ class MatGF2:
 
         Parameters
         ----------
-        n_cols: int (optional)
+        n_cols : int (optional)
             Number of columns over which to perform Gaussian elimination. The default is `None` which represents the number of columns of the matrix.
 
-        copy: bool (optional)
+        copy : bool (optional)
             If `True`, the REF matrix is copied into a new instance, otherwise `self` is modified. Defaults to `False`.
 
         Returns
         -------
-        mat_ref: MatGF2
+        mat_ref : MatGF2
             The matrix in row echelon form.
-
-        Adapted from `:func: galois.FieldArray.row_reduce`, which renders the matrix in row-reduced echelon form (RREF) and specialized for GF(2).
         """
         ncols = self.data.shape[1] if ncols is None else ncols
         mat_ref = MatGF2(self.data) if copy else self
@@ -320,18 +298,16 @@ class MatGF2:
 
         Parameters
         ----------
-        n_cols: int (optional)
+        n_cols : int (optional)
             Number of columns over which to perform Gaussian elimination. The default is `None` which represents the number of columns of the matrix.
 
-        copy: bool (optional)
+        copy : bool (optional)
             If `True`, the RREF matrix is copied into a new instance, otherwise `self` is modified. Defaults to `False`.
 
         Returns
         -------
         mat_ref: MatGF2
             The matrix in row-reduced echelon form.
-
-        Adapted from `:func: galois.FieldArray.row_reduce`, which renders the matrix in row-reduced echelon form (RREF) and specialized for GF(2).
         """
         ncols = self.data.shape[1] if ncols is None else ncols
         mat_ref = MatGF2(self.data) if copy else self
@@ -339,7 +315,7 @@ class MatGF2:
         return MatGF2(_elimination_jit(mat_ref.data, ncols=ncols, full_reduce=True))
 
 
-def back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
+def solve_f2_linear_system(mat: MatGF2, b: MatGF2) -> MatGF2:
     r"""Solve the linear system (LS) `mat @ x == b`.
 
     Parameters
@@ -358,11 +334,14 @@ def back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     -----
     This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
     """
-    return MatGF2(_solve_f2_linear_system(mat.data, b.data))
+    return MatGF2(_solve_f2_linear_system_jit(mat.data, b.data))
 
 
 @njit
-def _solve_f2_linear_system(mat_data: npt.NDArray[np.uint8], b_data: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+def _solve_f2_linear_system_jit(
+    mat_data: npt.NDArray[np.uint8], b_data: npt.NDArray[np.uint8]
+) -> npt.NDArray[np.uint8]:
+    """Wrap `:func:solve_f2_linear_system`. See docstring for details."""
     m, n = mat_data.shape
     x = np.zeros(n, dtype=np.uint8)
 
@@ -399,6 +378,26 @@ def _solve_f2_linear_system(mat_data: npt.NDArray[np.uint8], b_data: npt.NDArray
 
 @njit
 def _elimination_jit(mat_data: npt.NDArray[np.uint8], ncols: int, full_reduce: bool) -> npt.NDArray[np.uint8]:
+    """Return row echelon form (REF) or row-reduced echelon form (RREF) by performing Gaussian elimination.
+
+    Parameters
+    ----------
+    mat_data : npt.NDArray[np.uint8]
+        Matrix to be gaussian-eliminated.
+    n_cols : int
+        Number of columns over which to perform Gaussian elimination.
+    full_reduce : bool
+        Flag determining the operation mode. Output is in RREF (respectively, REF) if `True` (repectively, `False`).
+
+    Returns
+    -------
+    mat_data: npt.NDArray[np.uint8]
+        The matrix in row(-reduced) echelon form.
+
+    Notes
+    -----
+    Adapted from `:func: galois.FieldArray.row_reduce`, which renders the matrix in row-reduced echelon form (RREF) and specialized for GF(2)
+    """
     m, n = mat_data.shape
     p = 0  # Pivot
 

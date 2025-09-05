@@ -14,18 +14,15 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-import networkx as nx
 import numpy as np
 
 from graphix.fundamentals import Axis, Plane
-from graphix.linalg import MatGF2, back_substitute
+from graphix.linalg import MatGF2, solve_f2_linear_system
 from graphix.measurements import PauliMeasurement
 from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
-
-    import numpy.typing as npt
 
     from graphix.opengraph import OpenGraph
 
@@ -288,7 +285,7 @@ def _update_p_matrix(
         j_shift = n_oi_diff + j  # `n_oi_diff` is the column offset from the first block of K_{LS}.
         mat = kls_matrix[:, :n_oi_diff]  # First block of K_{LS}, in row echelon form.
         b = kls_matrix[:, j_shift]
-        x = back_substitute(mat, b)
+        x = solve_f2_linear_system(mat, b)
         p_matrix[:, j] = x.data
 
 
@@ -474,38 +471,15 @@ def _get_topological_generations(ordering_matrix: MatGF2) -> list[list[int]] | N
 
     or `None`
         if `ordering_matrix` is not a DAG.
-    """
-    topo_gen = _topological_generations(ordering_matrix.data)  # Returns a generator.
-    try:
-        return list(topo_gen)
-    except nx.NetworkXUnfeasible:
-        return None
-
-
-def _topological_generations(adj_mat: npt.NDArray[np.uint8]):
-    """Adaptation of `:func: networkx.algorithms.dag.topological_generations`. See notes for further information.
-
-    Parameters
-    ----------
-    adj_mat : array
-        Matrix encoding adjacency matrix of the graph. Here we use the convention that the element `adj_mat[i,j]` represents a link `j -> i`. NetworkX uses the opposite convention.
-
-    Yields
-    ------
-    sets of nodes
-        Yields sets of nodes representing each generation.
-
-    Raises
-    ------
-    networkx.NetworkXUnfeasible
-        If `adj_mat` is not a DAG.
 
     Notes
     -----
-    We rewrite the NetworkX algorithm so that it works directly on the adjacency matrix (which is the output of the Pauli-flow finding algorithm) instead of a `:class: nx.DiGraph` object. This avoids calling the function `nx.from_numpy_array` which are expensive for certain graph instances.
+    This function adaptata `:func: networkx.algorithms.dag.topological_generations` so that it works directly on the adjacency matrix (which is the output of the Pauli-flow finding algorithm) instead of a `:class: nx.DiGraph` object. This avoids calling the function `nx.from_numpy_array` which can be expensive for certain graph instances.
 
-    Contrary to the implementation in NetworkX, we do not check that the graph is not changed while the returned iterator is being processed.
+    Here we use the convention that the element `ordering_matrix[i,j]` represents a link `j -> i`. NetworkX uses the opposite convention.
     """
+    adj_mat = ordering_matrix.data
+
     indegree_map = {}
     zero_indegree = []
     neighbors = {node: set(np.flatnonzero(row).astype(int)) for node, row in enumerate(adj_mat.T)}
@@ -516,6 +490,8 @@ def _topological_generations(adj_mat: npt.NDArray[np.uint8]):
         else:
             zero_indegree.append(node)
 
+    generations = []
+
     while zero_indegree:
         this_generation = zero_indegree
         zero_indegree = []
@@ -525,10 +501,11 @@ def _topological_generations(adj_mat: npt.NDArray[np.uint8]):
                 if indegree_map[child] == 0:
                     zero_indegree.append(child)
                     del indegree_map[child]
-        yield this_generation
+        generations.append(this_generation)
 
     if indegree_map:
-        raise nx.NetworkXUnfeasible("Graph contains a cycle")
+        return None
+    return generations
 
 
 def _cnc_matrices2pflow(
