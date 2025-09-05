@@ -87,7 +87,7 @@ def generate_from_graph(
 
     # no flow found - we try gflow
     g, l_k = graphix.gflow.find_gflow(graph, inputs_set, outputs_set, meas_planes=meas_planes)
-    if g is not None:
+    if g is not None and l_k is not None:
         # gflow found
         pattern = _gflow2pattern(graph, angles, inputs, meas_planes, g, l_k)
         pattern.reorder_output_nodes(outputs)
@@ -95,7 +95,7 @@ def generate_from_graph(
 
     # no flow or gflow found - we try pflow
     p, l_k = graphix.gflow.find_pauliflow(graph, inputs_set, outputs_set, meas_planes=meas_planes, meas_angles=angles)
-    if p is not None:
+    if p is not None and l_k is not None:
         # pflow found
         pattern = _pflow2pattern(graph, angles, inputs, meas_planes, p, l_k)
         pattern.reorder_output_nodes(outputs)
