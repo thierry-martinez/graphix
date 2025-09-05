@@ -59,23 +59,23 @@ def find_gflow(
     oset: AbstractSet[int]
         Set of output nodes.
     meas_planes: Mapping[int, Plane]
-        Measurement planes for each qubit. `meas_planes[i]` is the measurement plane for qubit `i`.
+        Measurement planes for each qubit. meas_planes[i] is the measurement plane for qubit i.
     mode: str
         Deprecated. Reminiscent of old API, it will be removed in future versions.
 
     Returns
     -------
     dict[int, set[int]]
-        Gflow correction function. In a given pair (`key`, `value`), `value` is the set of qubits to be corrected for the measurement of qubit `key`.
+        Gflow correction function. In a given pair (key, value), value is the set of qubits to be corrected for the measurement of qubit key.
     dict[int, int]
-        Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
+        Partial order between corrected qubits, such that the pair (key, value) corresponds to (node, depth).
 
-    or `None`, `None`
+    or None, None
         if the input open graph does not have gflow.
 
     Notes
     -----
-    This function implements the algorithm in [1], see module `graphix.find_pflow`.
+    This function implements the algorithm in [1], see module graphix.find_pflow.
     See [1] or [2] for a definition of gflow.
 
     References
@@ -242,25 +242,25 @@ def find_pauliflow(
     oset: AbstractSet[int]
         Set of output nodes.
     meas_planes: Mapping[int, Plane]
-        Measurement planes for each qubit. `meas_planes[i]` is the measurement plane for qubit `i`.
+        Measurement planes for each qubit. meas_planes[i] is the measurement plane for qubit i.
     meas_angles: Mapping[int, ExpressionOrFloat]
-        Measurement angles for each qubit. `meas_angles[i]` is the measurement angle for qubit `i`.
+        Measurement angles for each qubit. meas_angles[i] is the measurement angle for qubit i.
     mode: str
         Deprecated. Reminiscent of old API, it will be removed in future versions.
 
     Returns
     -------
     dict[int, set[int]]
-        Pauli flow correction function. In a given pair (`key`, `value`), `value` is the set of qubits to be corrected for the measurement of qubit `key`.
+        Pauli flow correction function. In a given pair (key, value), value is the set of qubits to be corrected for the measurement of qubit key.
     dict[int, int]
-        Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
+        Partial order between corrected qubits, such that the pair (key, value) corresponds to (node, depth).
 
-    or `None`, `None`
+    or None, None
         if the input open graph does not have gflow.
 
     Notes
     -----
-    This function implements the algorithm in [1], see module `graphix.find_pflow`.
+    This function implements the algorithm in [1], see module graphix.find_pflow.
     See [1] or [2] for a definition of Pauli flow.
 
     References
