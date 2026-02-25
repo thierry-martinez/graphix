@@ -140,6 +140,7 @@ class TestTranspilerUnitGates:
         nqubits = 4
         depth = 6
         circuit = rand_circuit(nqubits, depth, rng, use_ccx=True)
+        circuit = transpile_swaps(circuit).circuit
         pattern = circuit.transpile().pattern
         pattern.minimize_space()
         state = circuit.simulate_statevector(rng=rng).statevec

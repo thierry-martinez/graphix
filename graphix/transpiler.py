@@ -372,6 +372,36 @@ class Circuit:
         -------
         result : :class:`TranspileResult` object
         """
+        from graphix_jcz_transpiler import transpile_jcz  # noqa: PLC0415
+
+        transpiled_swaps = transpile_swaps(self)
+        result = transpile_jcz(transpiled_swaps.circuit)
+        # result = transpiled_swaps.circuit.old_transpile()
+        index_outputs: list[int | None] = []
+        index = 0
+        for qubit in transpiled_swaps.qubits:
+            if qubit is None:
+                index_outputs.append(None)
+            else:
+                index_outputs.append(index)
+                index += 1
+        output_nodes = []
+        for qubit in transpiled_swaps.qubits:
+            if qubit is not None:
+                index_output = index_outputs[qubit]
+                assert index_output is not None
+                output_nodes.append(result.pattern.output_nodes[index_output])
+        result.pattern.reorder_output_nodes(output_nodes)
+        result.pattern = result.pattern.infer_pauli_measurements()
+        return result
+
+    def old_transpile(self) -> TranspileResult:
+        """Transpile the circuit to a pattern.
+
+        Returns
+        -------
+        result : :class:`TranspileResult` object
+        """
         n_node = self.width
         out: list[int | None] = list(range(self.width))
         pattern = Pattern(input_nodes=list(range(self.width)))

@@ -37,7 +37,9 @@ def hpat() -> Pattern:
 def rzpat(alpha: Angle) -> Pattern:
     circ = Circuit(1)
     circ.rz(0, alpha)
-    return circ.transpile().pattern
+    pattern = circ.transpile().pattern
+    pattern.standardize()
+    return pattern
 
 
 class TestNoisyDensityMatrixBackend:
