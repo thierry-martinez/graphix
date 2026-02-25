@@ -6,3 +6,4 @@ quimb
 scipy
 sympy
 typing_extensions
+graphix_jcz_transpiler@git+https://github.com/thierry-martinez/graphix-jcz-transpiler.git@issues/2
