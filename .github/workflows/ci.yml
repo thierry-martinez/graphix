@@ -34,8 +34,5 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
-      - name: "Set up Python ${{ matrix.python }}"
-        run: uv python install ${{ matrix.python }}
-
       - name: Run nox
         run: uvx nox -db uv --python ${{ matrix.python }}
