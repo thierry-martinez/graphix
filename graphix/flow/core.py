@@ -44,7 +44,6 @@ from graphix.flow.exceptions import (
 from graphix.fundamentals import AbstractMeasurement, AbstractPlanarMeasurement, Axis, Plane
 from graphix.measurements import Measurement
 from graphix.pretty_print import OutputFormat, flow_to_str, xzcorr_to_str
-from graphix.visualization import GraphVisualizer
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -392,6 +391,9 @@ class XZCorrections(Generic[_AM_co]):
         filename : Path | None, default=None
             File path to save the visualization. If ``None``, figure is displayed but not saved.
         """
+        # Circumvent import loop
+        from graphix.visualization import GraphVisualizer  # noqa: PLC0415
+
         gv = GraphVisualizer.from_xzcorrections(
             xz_corr=self,
             pauli_measurements=pauli_measurements,
@@ -763,6 +765,9 @@ class PauliFlow(Generic[_AM_co]):
         filename : Path | None, default=None
             File path to save the visualization. If ``None``, figure is displayed but not saved.
         """
+        # Circumvent import loop
+        from graphix.visualization import GraphVisualizer  # noqa: PLC0415
+
         gv = GraphVisualizer.from_flow(
             flow=self,
             pauli_measurements=pauli_measurements,

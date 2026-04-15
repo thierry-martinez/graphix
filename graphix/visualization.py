@@ -6,6 +6,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import Enum, auto
+from functools import singledispatch
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 import matplotlib.transforms as mtransforms
@@ -15,6 +16,7 @@ import numpy.typing as npt
 from matplotlib import pyplot as plt
 from typing_extensions import assert_never
 
+from graphix.flow.core import CausalFlow, PauliFlow, XZCorrections
 from graphix.measurements import PauliMeasurement
 
 if TYPE_CHECKING:
@@ -24,7 +26,6 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from graphix.clifford import Clifford
-    from graphix.flow.core import CausalFlow, PauliFlow, XZCorrections
     from graphix.fundamentals import AbstractMeasurement, AbstractPlanarMeasurement
     from graphix.opengraph import OpenGraph
 
@@ -242,19 +243,7 @@ class GraphVisualizer:
         -------
         GraphVisualizer
         """
-        # We can't use functools.singledispatch here.
-        # If we annotate the dispatch argument with CausalFlow[AbstractPlanarMeasurement]
-        # compilation will fail because generic types are only known statically.
-        # If we don't specify the generic type (we don't need to), mypy will complain.
-
-        # Circumvent import loop
-        from graphix.flow.core import CausalFlow  # noqa: PLC0415
-
-        pos = (
-            _compute_positions_causal_flow(flow)
-            if isinstance(flow, CausalFlow)
-            else _compute_positions_partial_order(flow)
-        )
+        pos = _compute_positions(flow)
         pos = _scale_positions(pos, node_distance)
         edge_paths = _compute_edge_paths(flow.og, pos)
         corrections = _format_corrections_flow(flow)
@@ -308,7 +297,7 @@ class GraphVisualizer:
         -------
         GraphVisualizer
         """
-        pos = _compute_positions_partial_order(xz_corr)
+        pos = _compute_positions(xz_corr)
         pos = _scale_positions(pos, node_distance)
         edge_paths = _compute_edge_paths(xz_corr.og, pos)
         corrections = _format_corrections_xz(xz_corr)
@@ -740,7 +729,16 @@ def _compute_positions_opengraph(og: OpenGraph[AbstractMeasurement]) -> dict[int
     return {node: (l_max - layers[node], index[pos[node][1]]) for node in og.graph.nodes()}
 
 
-def _compute_positions_partial_order(
+@singledispatch
+def _compute_positions(
+    obj: PauliFlow[AbstractMeasurement] | XZCorrections[AbstractMeasurement] | CausalFlow[AbstractPlanarMeasurement],
+) -> dict[int, _Point]:
+    raise NotImplementedError
+
+
+@_compute_positions.register(PauliFlow)
+@_compute_positions.register(XZCorrections)
+def _(
     obj: PauliFlow[AbstractMeasurement] | XZCorrections[AbstractMeasurement],
 ) -> dict[int, _Point]:
     """Compute node positions for objects with a partial order.
@@ -767,7 +765,8 @@ def _compute_positions_partial_order(
     return {node: (l_max - layer_idx, index[pos[node][1]]) for layer_idx, layer in enumerate(pol) for node in layer}
 
 
-def _compute_positions_causal_flow(obj: CausalFlow[AbstractPlanarMeasurement]) -> dict[int, _Point]:
+@_compute_positions.register(CausalFlow)
+def _(obj: CausalFlow[AbstractPlanarMeasurement]) -> dict[int, _Point]:
     """Compute node positions for causal flow graph layout.
 
     Parameters
