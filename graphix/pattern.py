@@ -51,6 +51,7 @@ if TYPE_CHECKING:
 
 _BuiltinBackendState = DensityMatrix | Statevec | MBQCTensorNet
 
+assert False
 
 class Pattern:
     """
