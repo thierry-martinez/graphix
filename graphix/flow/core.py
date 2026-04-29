@@ -15,6 +15,8 @@ import networkx as nx
 # `override` introduced in Python 3.12, `assert_never` introduced in Python 3.11
 from typing_extensions import assert_never, override
 
+import graphix.pattern
+
 # `override` introduced in Python 3.12, `assert_never` introduced in Python 3.11
 from graphix.circ_ext.extraction import CliffordMap, ExtractionResult, PauliExponentialDAG, PauliString
 from graphix.command import E, M, N, X, Z
@@ -173,9 +175,7 @@ class XZCorrections(Generic[_AM_co]):
         elif not self.is_compatible(total_measurement_order):
             raise XZCorrectionsGenericError(XZCorrectionsGenericErrorReason.IncompatibleOrder)
 
-        from graphix.pattern import Pattern  # noqa: PLC0415
-
-        pattern = Pattern(input_nodes=self.og.input_nodes)
+        pattern = graphix.pattern.Pattern(input_nodes=self.og.input_nodes)
         non_input_nodes = set(self.og.graph.nodes) - set(self.og.input_nodes)
 
         for i in non_input_nodes:

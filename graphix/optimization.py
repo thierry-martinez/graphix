@@ -18,8 +18,8 @@ from typing_extensions import assert_never
 from graphix import command
 from graphix.clifford import Clifford, Domains
 from graphix.command import CommandKind, Node
+from graphix.flow import core
 from graphix.flow._partial_order import compute_topological_generations
-from graphix.flow.core import CausalFlow, GFlow, XZCorrections
 from graphix.flow.exceptions import (
     FlowGenericError,
     FlowGenericErrorReason,
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from typing import Self
 
     from graphix import Pattern
+    from graphix.flow.core import CausalFlow, GFlow, XZCorrections
     from graphix.space_minimization import SpaceMinimizationHeuristic
 
 
@@ -553,7 +554,7 @@ class StandardizedPattern(_StandardizedPattern):
         partial_order_layers = (
             self.extract_partial_order_layers()
         )  # Raises a `ValueError` if the pattern corrections form closed loops.
-        cf = CausalFlow(og.downcast_bloch(), dict(correction_function), partial_order_layers)
+        cf = core.CausalFlow(og.downcast_bloch(), dict(correction_function), partial_order_layers)
         cf.check_well_formed()  # Raises a `FlowError` if the partial order and the correction function are not compatible, or if a measured node is corrected by more than one node.
         return cf
 
@@ -599,7 +600,7 @@ class StandardizedPattern(_StandardizedPattern):
         partial_order_layers = (
             self.extract_partial_order_layers()
         )  # Raises a `ValueError` if the pattern corrections form closed loops.
-        gf = GFlow(og.downcast_bloch(), correction_function, partial_order_layers)
+        gf = core.GFlow(og.downcast_bloch(), correction_function, partial_order_layers)
         gf.check_well_formed()
         return gf
 
@@ -637,7 +638,7 @@ class StandardizedPattern(_StandardizedPattern):
             self.extract_opengraph()
         )  # Raises a `ValueError` if `N` commands in the pattern do not represent a |+⟩ state.
 
-        return XZCorrections.from_measured_nodes_mapping(
+        return core.XZCorrections.from_measured_nodes_mapping(
             og, x_corr, z_corr
         )  # Raises a `XZCorrectionsError` if the input dictionaries are not well formed.
 

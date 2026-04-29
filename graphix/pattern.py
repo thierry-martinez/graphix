@@ -20,7 +20,8 @@ from warnings import warn
 import networkx as nx
 from typing_extensions import assert_never
 
-from graphix import command, optimization
+import graphix.optimization
+from graphix import command
 from graphix.clifford import Clifford
 from graphix.command import Command, CommandKind, Node
 from graphix.flow.exceptions import FlowError
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from typing_extensions import Unpack
 
     from graphix.flow.core import CausalFlow, GFlow, PauliFlow, XZCorrections
+    from graphix.optimization import StandardizedPattern
     from graphix.parameter import ExpressionOrSupportsComplex, ExpressionOrSupportsFloat, Parameter
     from graphix.sim import Backend, Data, DensityMatrixBackend, StatevectorBackend
     from graphix.sim.base_backend import _StateT_co
@@ -501,7 +503,7 @@ class Pattern:
         order of 'N', 'E', 'M' and then byproduct commands ('X' and
         'Z') and finally Clifford commands ('C').
         """
-        self.__seq = optimization.standardize(self).__seq
+        self.__seq = graphix.optimization.standardize(self).__seq
 
     def is_standard(self, strict: bool = False) -> bool:
         """Determine whether the command sequence is standard.
@@ -963,7 +965,7 @@ class Pattern:
 
         - See :func:`optimization.StandardizedPattern.extract_causal_flow` for additional information on why it is required to standardized the pattern to extract the partial order layering.
         """
-        return optimization.StandardizedPattern.from_pattern(self).extract_partial_order_layers()
+        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_partial_order_layers()
 
     def extract_causal_flow(self) -> CausalFlow[BlochMeasurement]:
         r"""Extract the causal flow structure from the current measurement pattern.
@@ -991,7 +993,7 @@ class Pattern:
         - Applying the chain ``Pattern.extract_causal_flow().to_corrections().to_pattern()`` to a strongly deterministic pattern returns a new pattern implementing the same unitary transformation. This equivalence holds as long as the original pattern contains no Clifford commands, since those are discarded during open-graph extraction.
         - This method requires that all the measurements in the pattern are represented as Bloch measurements (i.e., there are no :class:`PauliMeasurement`s). Use :meth:`to_bloch()` to convert all Pauli measurements.
         """
-        return optimization.StandardizedPattern.from_pattern(self).extract_causal_flow()
+        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_causal_flow()
 
     def extract_gflow(self) -> GFlow[BlochMeasurement]:
         r"""Extract the generalized flow (gflow) structure from the current measurement pattern.
@@ -1015,7 +1017,7 @@ class Pattern:
         -----
         The notes provided in :func:`self.extract_causal_flow` apply here as well.
         """
-        return optimization.StandardizedPattern.from_pattern(self).extract_gflow()
+        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_gflow()
 
     def extract_xzcorrections(self) -> XZCorrections[Measurement]:
         """Extract the XZ-corrections from the current measurement pattern.
@@ -1038,7 +1040,7 @@ class Pattern:
         This equivalence holds as long as the original pattern contains no Clifford commands, since those are discarded during open-graph extraction.
         See docstring in :func:`optimization.StandardizedPattern.extract_gflow` for additional information.
         """
-        return optimization.StandardizedPattern.from_pattern(self).extract_xzcorrections()
+        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_xzcorrections()
 
     def _measurement_order_depth(self) -> list[int]:
         """Obtain a measurement order which reduces the depth of a pattern.
@@ -1273,7 +1275,11 @@ class Pattern:
             The optimized pattern. Equal to ``self`` if ``copy`` is ``False``.
 
         """
-        new = optimization.StandardizedPattern.from_pattern(self).minimize_space(heuristics).to_space_optimal_pattern()
+        new = (
+            graphix.optimization.StandardizedPattern.from_pattern(self)
+            .minimize_space(heuristics)
+            .to_space_optimal_pattern()
+        )
         if copy:
             return new
         self.__seq = new.__seq
@@ -1288,7 +1294,7 @@ class Pattern:
             list of measurement ('M') commands
         """
         new = dataclasses.replace(
-            optimization.StandardizedPattern.from_pattern(self), m_list=tuple(meas_commands)
+            graphix.optimization.StandardizedPattern.from_pattern(self), m_list=tuple(meas_commands)
         ).to_space_optimal_pattern()
         self.__seq = new.__seq
 
@@ -1508,7 +1514,7 @@ class Pattern:
                     flow: PauliFlow[Measurement] | None = None
 
                     if flow_from_pattern:
-                        pattern_std = optimization.StandardizedPattern.from_pattern(self)
+                        pattern_std = graphix.optimization.StandardizedPattern.from_pattern(self)
                         try:
                             flow = pattern_std.extract_causal_flow()
                         except FlowError:
@@ -1766,7 +1772,7 @@ class Pattern:
         -----
         This function relies on :func:`StandardizedPattern.perform_pauli_pushing`.
         """
-        standardized_pattern = optimization.StandardizedPattern.from_pattern(self).perform_pauli_pushing(
+        standardized_pattern = graphix.optimization.StandardizedPattern.from_pattern(self).perform_pauli_pushing(
             leave_nodes, stacklevel=stacklevel + 1
         )
         pattern = standardized_pattern.to_pattern() if standardize else standardized_pattern.to_space_optimal_pattern()
@@ -1855,7 +1861,7 @@ def measure_pauli(pattern: Pattern, *, ignore_pauli_with_deps: bool = False, sta
     """
     pattern._warn_non_inferred_pauli_measurements(stacklevel=stacklevel + 1)
     pat = Pattern()
-    standardized_pattern = optimization.StandardizedPattern.from_pattern(pattern)
+    standardized_pattern = graphix.optimization.StandardizedPattern.from_pattern(pattern)
     if not ignore_pauli_with_deps:
         standardized_pattern = standardized_pattern.perform_pauli_pushing(stacklevel=stacklevel + 1)
     output_nodes = set(pattern.output_nodes)
@@ -1934,7 +1940,7 @@ def measure_pauli(pattern: Pattern, *, ignore_pauli_with_deps: bool = False, sta
     return pat
 
 
-def pauli_nodes(pattern: optimization.StandardizedPattern) -> tuple[list[tuple[command.M, PauliMeasurement]], set[int]]:
+def pauli_nodes(pattern: StandardizedPattern) -> tuple[list[tuple[command.M, PauliMeasurement]], set[int]]:
     """Return the list of measurement commands that are in Pauli bases and that are not dependent on any non-Pauli measurements.
 
     Parameters
