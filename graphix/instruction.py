@@ -6,7 +6,7 @@ import enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import ClassVar, Literal, SupportsFloat
+from typing import TYPE_CHECKING, ClassVar, Literal, SupportsFloat
 
 # Self introduced in Python 3.11
 # override introduced in Python 3.12
@@ -290,10 +290,6 @@ class RZ(_KindChecker, BaseInstruction):
         return RZ(visitor.visit_qubit(self.target), visitor.visit_angle(self.angle))
 
 
-InstructionTypeWithoutRZZ = CCX | CNOT | SWAP | CZ | H | S | X | Y | Z | I | M | RX | RY | RZ
-InstructionType = InstructionTypeWithoutRZZ | RZZ
-
-
 class _InstructionMeta(type):
     _members: ClassVar[tuple[type, ...]] = ()
 
@@ -344,3 +340,10 @@ class Instruction(InstructionWithoutRZZ):
 
     def __init__(self) -> None:
         raise TypeError("Instruction is a namespace, not a class.")
+
+
+if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    InstructionTypeWithoutRZZ: TypeAlias = CCX | CNOT | SWAP | CZ | H | S | X | Y | Z | I | M | RX | RY | RZ
+    InstructionType: TypeAlias = InstructionTypeWithoutRZZ | RZZ
