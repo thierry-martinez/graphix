@@ -6,7 +6,7 @@ import dataclasses
 import enum
 import logging
 from enum import Enum
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import ClassVar, Literal
 
 from graphix import utils
 from graphix.clifford import Clifford, Domains
@@ -237,8 +237,7 @@ class T(_KindChecker, BaseCommand):
     kind: ClassVar[Literal[CommandKind.T]] = dataclasses.field(default=CommandKind.T, init=False)
 
 
-if TYPE_CHECKING:
-    CommandType = N | M | E | C | X | Z | S | T
+CommandType = N | M | E | C | X | Z | S | T
 
 
 class _CommandMeta(type):
