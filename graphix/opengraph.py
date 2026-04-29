@@ -10,6 +10,7 @@ import networkx as nx
 
 from graphix.flow._find_cflow import find_cflow
 from graphix.flow._find_gpflow import AlgebraicOpenGraph, PlanarAlgebraicOpenGraph, compute_correction_matrix
+from graphix.flow.core import GFlow, PauliFlow
 from graphix.fundamentals import AbstractMeasurement, AbstractPlanarMeasurement
 from graphix.measurements import BlochMeasurement, Measurement
 
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     # Unpack introduced in Python 3.12
     from typing_extensions import Unpack
 
-    from graphix import CausalFlow, GFlow, Pattern, PauliFlow
+    from graphix import CausalFlow, Pattern
     from graphix.parameter import ExpressionOrSupportsFloat, Parameter
     from graphix.visualization import DrawKwargs
 
@@ -496,8 +497,6 @@ class OpenGraph(Generic[_AM_co]):
         ----------
         [1] Mitosek and Backens, 2024 (arXiv:2410.23439).
         """
-        from graphix import GFlow  # noqa: PLC0415
-
         aog = PlanarAlgebraicOpenGraph(self)
         correction_matrix = compute_correction_matrix(aog)
         if correction_matrix is None:
@@ -550,8 +549,6 @@ class OpenGraph(Generic[_AM_co]):
         >>> str(og.infer_pauli_measurements().extract_pauli_flow())
         'p(0) = {1}, p(1) = {2}; {0, 1} < {2}'
         """
-        from graphix import PauliFlow  # noqa: PLC0415
-
         self._warn_non_inferred_pauli_measurements(stacklevel=stacklevel + 1)
         aog = AlgebraicOpenGraph(self)
         correction_matrix = compute_correction_matrix(aog)

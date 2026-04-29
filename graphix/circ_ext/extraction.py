@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from typing_extensions import Self  # Self introduced in 3.11
 
+from graphix.circ_ext.compilation import er_to_circuit
 from graphix.fundamentals import Axis, ParameterizedAngle, Plane, Sign
 from graphix.measurements import BlochMeasurement, Measurement, PauliMeasurement
 
@@ -65,9 +66,6 @@ class ExtractionResult:
         Circuit
             Quantum circuit represented as a set of instructions.
         """
-        # Circumvent import loop
-        from graphix.circ_ext.compilation import er_to_circuit  # noqa: PLC0415
-
         return er_to_circuit(self, pexp_cp=pexp_cp, cm_cp=cm_cp)
 
 

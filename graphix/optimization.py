@@ -18,8 +18,8 @@ from typing_extensions import assert_never
 from graphix import command
 from graphix.clifford import Clifford, Domains
 from graphix.command import CommandKind, Node
-from graphix.flow import core
 from graphix.flow._partial_order import compute_topological_generations
+from graphix.flow.core import CausalFlow, GFlow, XZCorrections
 from graphix.flow.exceptions import (
     FlowGenericError,
     FlowGenericErrorReason,
@@ -27,7 +27,11 @@ from graphix.flow.exceptions import (
 from graphix.fundamentals import Axis, Plane, Sign
 from graphix.measurements import BlochMeasurement, Measurement, Outcome, PauliMeasurement
 from graphix.opengraph import OpenGraph
-from graphix.space_minimization import minimize_space, standardized_pattern_max_space
+from graphix.space_minimization import (
+    minimize_space,
+    standardized_pattern_max_space,
+    standardized_to_space_optimal_pattern,
+)
 from graphix.states import BasicStates
 
 if TYPE_CHECKING:
@@ -35,8 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Set as AbstractSet
     from typing import Self
 
-    from graphix import Pattern
-    from graphix.flow.core import CausalFlow, GFlow, XZCorrections
+    from graphix.pattern import Pattern
     from graphix.space_minimization import SpaceMinimizationHeuristic
 
 
@@ -390,7 +393,7 @@ class StandardizedPattern(_StandardizedPattern):
 
     def to_pattern(self) -> Pattern:
         """Return the standardized pattern."""
-        from graphix import Pattern  # noqa: PLC0415
+        from graphix.pattern import Pattern  # noqa: PLC0415
 
         pattern = Pattern(input_nodes=self.input_nodes)
         pattern.results = dict(self.results)
@@ -417,8 +420,6 @@ class StandardizedPattern(_StandardizedPattern):
         To find an alternative measurement order that further reduces
         space, use :meth:`minimize_space`.
         """
-        from graphix.space_minimization import standardized_to_space_optimal_pattern  # noqa: PLC0415
-
         return standardized_to_space_optimal_pattern(self)
 
     def extract_opengraph(self) -> OpenGraph[Measurement]:
@@ -554,7 +555,7 @@ class StandardizedPattern(_StandardizedPattern):
         partial_order_layers = (
             self.extract_partial_order_layers()
         )  # Raises a `ValueError` if the pattern corrections form closed loops.
-        cf = core.CausalFlow(og.downcast_bloch(), dict(correction_function), partial_order_layers)
+        cf = CausalFlow(og.downcast_bloch(), dict(correction_function), partial_order_layers)
         cf.check_well_formed()  # Raises a `FlowError` if the partial order and the correction function are not compatible, or if a measured node is corrected by more than one node.
         return cf
 
@@ -600,7 +601,7 @@ class StandardizedPattern(_StandardizedPattern):
         partial_order_layers = (
             self.extract_partial_order_layers()
         )  # Raises a `ValueError` if the pattern corrections form closed loops.
-        gf = core.GFlow(og.downcast_bloch(), correction_function, partial_order_layers)
+        gf = GFlow(og.downcast_bloch(), correction_function, partial_order_layers)
         gf.check_well_formed()
         return gf
 
@@ -638,7 +639,7 @@ class StandardizedPattern(_StandardizedPattern):
             self.extract_opengraph()
         )  # Raises a `ValueError` if `N` commands in the pattern do not represent a |+⟩ state.
 
-        return core.XZCorrections.from_measured_nodes_mapping(
+        return XZCorrections.from_measured_nodes_mapping(
             og, x_corr, z_corr
         )  # Raises a `XZCorrectionsError` if the input dictionaries are not well formed.
 
@@ -727,7 +728,7 @@ def _update_corrections(node: Node, domain: AbstractSet[Node], correction: dict[
 
 def incorporate_pauli_results(pattern: Pattern) -> Pattern:
     """Return an equivalent pattern where results from Pauli presimulation are integrated in corrections."""
-    from graphix import Pattern  # noqa: PLC0415
+    from graphix.pattern import Pattern  # noqa: PLC0415
 
     result = Pattern(input_nodes=pattern.input_nodes)
     for cmd in pattern:
@@ -774,7 +775,7 @@ def incorporate_pauli_results(pattern: Pattern) -> Pattern:
 
 def remove_useless_domains(pattern: Pattern) -> Pattern:
     """Return an equivalent pattern where measurement domains that are not used given the specific measurement angles and planes are removed."""
-    from graphix import Pattern  # noqa: PLC0415
+    from graphix.pattern import Pattern  # noqa: PLC0415
 
     new_pattern = Pattern(input_nodes=pattern.input_nodes)
     new_pattern.results = pattern.results
@@ -796,7 +797,7 @@ def remove_useless_domains(pattern: Pattern) -> Pattern:
 
 def single_qubit_domains(pattern: Pattern) -> Pattern:
     """Return an equivalent pattern where domains contains at most one qubit."""
-    from graphix import Pattern  # noqa: PLC0415
+    from graphix.pattern import Pattern  # noqa: PLC0415
 
     new_pattern = Pattern(input_nodes=pattern.input_nodes)
     new_pattern.results = pattern.results

@@ -33,6 +33,7 @@ from graphix.pretty_print import OutputFormat, pattern_to_str
 from graphix.qasm3_exporter import pattern_to_qasm3_lines
 from graphix.sim import DensityMatrix, MBQCTensorNet, Statevec
 from graphix.simulator import PatternSimulator
+from graphix.space_minimization import pattern_max_space
 from graphix.states import BasicStates
 from graphix.visualization import GraphVisualizer
 
@@ -1309,8 +1310,6 @@ class Pattern:
         n_nodes : int
             max number of nodes present in the graph during pattern execution.
         """
-        from graphix.space_minimization import pattern_max_space  # noqa: PLC0415
-
         return pattern_max_space(self)
 
     def space_list(self) -> list[int]:
