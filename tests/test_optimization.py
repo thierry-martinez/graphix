@@ -4,7 +4,7 @@ import pytest
 from numpy.random import PCG64, Generator
 
 from graphix.clifford import Clifford
-from graphix.command import C, Command, CommandKind, E, M, N, X, Z
+from graphix.command import C, CommandKind, CommandType, E, M, N, X, Z
 from graphix.fundamentals import ANGLE_PI, Plane
 from graphix.measurements import Measurement
 from graphix.optimization import StandardizedPattern, incorporate_pauli_results, remove_useless_domains
@@ -22,7 +22,7 @@ def test_standardize_clifford_entanglement(fx_rng: Generator) -> None:
 
     for i in range(24):
         for j in range(24):
-            cmds: list[Command] = [N(1), C(0, Clifford(i)), C(1, Clifford(j)), E((0, 1))]
+            cmds: list[CommandType] = [N(1), C(0, Clifford(i)), C(1, Clifford(j)), E((0, 1))]
             p = Pattern(input_nodes=i_lst, output_nodes=o_lst, cmds=cmds)
             p_ref = p.copy()
 

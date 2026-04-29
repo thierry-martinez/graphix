@@ -20,10 +20,9 @@ from warnings import warn
 import networkx as nx
 from typing_extensions import assert_never
 
-import graphix.optimization
-from graphix import command
+from graphix import command, optimization
 from graphix.clifford import Clifford
-from graphix.command import Command, CommandKind, Node
+from graphix.command import CommandKind, CommandType, Node
 from graphix.flow.exceptions import FlowError
 from graphix.fundamentals import Axis, Plane, Sign
 from graphix.graphsim import GraphState
@@ -98,12 +97,12 @@ class Pattern:
     """
 
     results: dict[int, Outcome]
-    __seq: list[Command]
+    __seq: list[CommandType]
 
     def __init__(
         self,
         input_nodes: Iterable[int] | None = None,
-        cmds: Iterable[Command] | None = None,
+        cmds: Iterable[CommandType] | None = None,
         output_nodes: Iterable[int] | None = None,
     ) -> None:
         """
@@ -113,7 +112,7 @@ class Pattern:
         ----------
         input_nodes : Iterable[int] | None
             Optional. List of input qubits.
-        cmds : Iterable[Command] | None
+        cmds : Iterable[CommandType] | None
             Optional. List of initial commands.
         output_nodes : Iterable[int] | None
             Optional. List of output qubits.
@@ -135,14 +134,14 @@ class Pattern:
         if output_nodes is not None:
             self.reorder_output_nodes(output_nodes)
 
-    def add(self, cmd: Command) -> None:
+    def add(self, cmd: CommandType) -> None:
         """Add command to the end of the pattern.
 
-        An MBQC command is an instance of :class:`graphix.command.Command`.
+        An MBQC command is an instance of :class:`graphix.command.CommandType`.
 
         Parameters
         ----------
-        cmd : :class:`graphix.command.Command`
+        cmd : :class:`graphix.command.CommandType`
             MBQC command.
         """
         match cmd.kind:
@@ -154,7 +153,7 @@ class Pattern:
                     self.__output_nodes.remove(cmd.node)
         self.__seq.append(cmd)
 
-    def extend(self, *cmds: Command | Iterable[Command]) -> None:
+    def extend(self, *cmds: CommandType | Iterable[CommandType]) -> None:
         """Add sequences of commands.
 
         :param cmds: sequences of commands
@@ -172,7 +171,7 @@ class Pattern:
         self.__seq = []
         self.__output_nodes = list(self.__input_nodes)
 
-    def replace(self, cmds: list[Command], input_nodes: list[int] | None = None) -> None:
+    def replace(self, cmds: list[CommandType], input_nodes: list[int] | None = None) -> None:
         """Replace pattern with a given sequence of pattern commands.
 
         :param cmds: list of commands
@@ -286,7 +285,7 @@ class Pattern:
         else:
             outputs = [n for n in self.__output_nodes if n not in merged] + mapped_outputs
 
-        def update_command(cmd: Command) -> Command:
+        def update_command(cmd: CommandType) -> CommandType:
             # Shallow copy is enough since the mutable attributes of cmd_new susceptible to change are reassigned
             cmd_new = copy.copy(cmd)
 
@@ -326,11 +325,11 @@ class Pattern:
         """Return the length of command sequence."""
         return len(self.__seq)
 
-    def __iter__(self) -> Iterator[Command]:
+    def __iter__(self) -> Iterator[CommandType]:
         """Iterate over commands."""
         return iter(self.__seq)
 
-    def __getitem__(self, index: int) -> Command:
+    def __getitem__(self, index: int) -> CommandType:
         """Get the command at a given index."""
         return self.__seq[index]
 
@@ -504,7 +503,7 @@ class Pattern:
         order of 'N', 'E', 'M' and then byproduct commands ('X' and
         'Z') and finally Clifford commands ('C').
         """
-        self.__seq = graphix.optimization.standardize(self).__seq
+        self.__seq = optimization.standardize(self).__seq
 
     def is_standard(self, strict: bool = False) -> bool:
         """Determine whether the command sequence is standard.
@@ -966,7 +965,7 @@ class Pattern:
 
         - See :func:`optimization.StandardizedPattern.extract_causal_flow` for additional information on why it is required to standardized the pattern to extract the partial order layering.
         """
-        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_partial_order_layers()
+        return optimization.StandardizedPattern.from_pattern(self).extract_partial_order_layers()
 
     def extract_causal_flow(self) -> CausalFlow[BlochMeasurement]:
         r"""Extract the causal flow structure from the current measurement pattern.
@@ -994,7 +993,7 @@ class Pattern:
         - Applying the chain ``Pattern.extract_causal_flow().to_corrections().to_pattern()`` to a strongly deterministic pattern returns a new pattern implementing the same unitary transformation. This equivalence holds as long as the original pattern contains no Clifford commands, since those are discarded during open-graph extraction.
         - This method requires that all the measurements in the pattern are represented as Bloch measurements (i.e., there are no :class:`PauliMeasurement`s). Use :meth:`to_bloch()` to convert all Pauli measurements.
         """
-        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_causal_flow()
+        return optimization.StandardizedPattern.from_pattern(self).extract_causal_flow()
 
     def extract_gflow(self) -> GFlow[BlochMeasurement]:
         r"""Extract the generalized flow (gflow) structure from the current measurement pattern.
@@ -1018,7 +1017,7 @@ class Pattern:
         -----
         The notes provided in :func:`self.extract_causal_flow` apply here as well.
         """
-        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_gflow()
+        return optimization.StandardizedPattern.from_pattern(self).extract_gflow()
 
     def extract_xzcorrections(self) -> XZCorrections[Measurement]:
         """Extract the XZ-corrections from the current measurement pattern.
@@ -1041,7 +1040,7 @@ class Pattern:
         This equivalence holds as long as the original pattern contains no Clifford commands, since those are discarded during open-graph extraction.
         See docstring in :func:`optimization.StandardizedPattern.extract_gflow` for additional information.
         """
-        return graphix.optimization.StandardizedPattern.from_pattern(self).extract_xzcorrections()
+        return optimization.StandardizedPattern.from_pattern(self).extract_xzcorrections()
 
     def _measurement_order_depth(self) -> list[int]:
         """Obtain a measurement order which reduces the depth of a pattern.
@@ -1276,11 +1275,7 @@ class Pattern:
             The optimized pattern. Equal to ``self`` if ``copy`` is ``False``.
 
         """
-        new = (
-            graphix.optimization.StandardizedPattern.from_pattern(self)
-            .minimize_space(heuristics)
-            .to_space_optimal_pattern()
-        )
+        new = optimization.StandardizedPattern.from_pattern(self).minimize_space(heuristics).to_space_optimal_pattern()
         if copy:
             return new
         self.__seq = new.__seq
@@ -1295,7 +1290,7 @@ class Pattern:
             list of measurement ('M') commands
         """
         new = dataclasses.replace(
-            graphix.optimization.StandardizedPattern.from_pattern(self), m_list=tuple(meas_commands)
+            optimization.StandardizedPattern.from_pattern(self), m_list=tuple(meas_commands)
         ).to_space_optimal_pattern()
         self.__seq = new.__seq
 
@@ -1513,7 +1508,7 @@ class Pattern:
                     flow: PauliFlow[Measurement] | None = None
 
                     if flow_from_pattern:
-                        pattern_std = graphix.optimization.StandardizedPattern.from_pattern(self)
+                        pattern_std = optimization.StandardizedPattern.from_pattern(self)
                         try:
                             flow = pattern_std.extract_causal_flow()
                         except FlowError:
@@ -1615,13 +1610,13 @@ class Pattern:
         active = set(self.input_nodes)
         measured = set(self.results)
 
-        def check_active(cmd: Command, node: int) -> None:
+        def check_active(cmd: CommandType, node: int) -> None:
             if node in measured:
                 raise RunnabilityError(cmd, node, RunnabilityErrorReason.AlreadyMeasured)
             if node not in active:
                 raise RunnabilityError(cmd, node, RunnabilityErrorReason.NotYetActive)
 
-        def check_measured(cmd: Command, node: int) -> None:
+        def check_measured(cmd: CommandType, node: int) -> None:
             if node not in measured:
                 raise RunnabilityError(cmd, node, RunnabilityErrorReason.NotYetMeasured)
 
@@ -1771,7 +1766,7 @@ class Pattern:
         -----
         This function relies on :func:`StandardizedPattern.perform_pauli_pushing`.
         """
-        standardized_pattern = graphix.optimization.StandardizedPattern.from_pattern(self).perform_pauli_pushing(
+        standardized_pattern = optimization.StandardizedPattern.from_pattern(self).perform_pauli_pushing(
             leave_nodes, stacklevel=stacklevel + 1
         )
         pattern = standardized_pattern.to_pattern() if standardize else standardized_pattern.to_space_optimal_pattern()
@@ -1808,7 +1803,7 @@ class RunnabilityErrorReason(Enum):
 class RunnabilityError(PatternError):
     """Error raised by :method:`Pattern.check_runnability`."""
 
-    cmd: Command
+    cmd: CommandType
     node: int
     reason: RunnabilityErrorReason
 
@@ -1860,7 +1855,7 @@ def measure_pauli(pattern: Pattern, *, ignore_pauli_with_deps: bool = False, sta
     """
     pattern._warn_non_inferred_pauli_measurements(stacklevel=stacklevel + 1)
     pat = Pattern()
-    standardized_pattern = graphix.optimization.StandardizedPattern.from_pattern(pattern)
+    standardized_pattern = optimization.StandardizedPattern.from_pattern(pattern)
     if not ignore_pauli_with_deps:
         standardized_pattern = standardized_pattern.perform_pauli_pushing(stacklevel=stacklevel + 1)
     output_nodes = set(pattern.output_nodes)
@@ -1919,7 +1914,7 @@ def measure_pauli(pattern: Pattern, *, ignore_pauli_with_deps: bool = False, sta
 
     # update command sequence
     vops = graph_state.extract_vops()
-    new_seq: list[Command] = []
+    new_seq: list[CommandType] = []
     new_seq.extend(command.N(node=index) for index in set(graph_state.nodes))
     new_seq.extend(command.E(nodes=edge) for edge in graph_state.edges)
     new_seq.extend(

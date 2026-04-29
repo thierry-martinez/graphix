@@ -6,7 +6,7 @@ import dataclasses
 import enum
 import logging
 from enum import Enum
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import ClassVar, Literal
 
 from graphix import utils
 from graphix.clifford import Clifford, Domains
@@ -237,30 +237,37 @@ class T(_KindChecker, BaseCommand):
     kind: ClassVar[Literal[CommandKind.T]] = dataclasses.field(default=CommandKind.T, init=False)
 
 
-if TYPE_CHECKING:
-    Command = N | M | E | C | X | Z | S | T
-else:
+class _CommandMeta(type):
+    _members: ClassVar[tuple[type, ...]] = ()
 
-    class Command:
-        """Grouping of all commands for namespace exposure.
+    def __instancecheck__(cls, obj: object) -> bool:
+        return isinstance(obj, cls._members)
 
-        Notes
-        -----
-        This class is not meant to be instantiated, but rather serves as a namespace for all command types.
-        The type alias for "any command" is :data:`CommandKind`.
-        """
 
-        N = N
-        M = M
-        E = E
-        C = C
-        X = X
-        Z = Z
-        S = S
-        T = T
+CommandType = N | M | E | C | X | Z | S | T
 
-        def __init__(self) -> None:
-            raise TypeError("Command is a namespace, not a class.")
+
+class Command(metaclass=_CommandMeta):
+    """Grouping of all commands for namespace exposure.
+
+    Notes
+    -----
+    This class is not meant to be instantiated, but rather serves as a namespace for all command types.
+    The type alias for "any command" is :data:`CommandKind`.
+    """
+
+    N: type[N] = N
+    M: type[M] = M
+    E: type[E] = E
+    C: type[C] = C
+    X: type[X] = X
+    Z: type[Z] = Z
+    S: type[S] = S
+    T: type[T] = T
+    _members: ClassVar[tuple[type, ...]] = (N, M, E, C, X, Z, S, T)
+
+    def __init__(self) -> None:
+        raise TypeError("Command is a namespace, not a class.")
 
 
 Correction = X | Z

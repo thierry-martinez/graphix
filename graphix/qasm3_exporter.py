@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING
 from typing_extensions import assert_never
 
 from graphix._version import version
-from graphix.command import CommandKind
+from graphix.command import CommandKind, CommandType
 from graphix.fundamentals import Axis, ParameterizedAngle, Plane
-from graphix.instruction import Instruction, InstructionKind
+from graphix.instruction import InstructionKind, InstructionType
 from graphix.pretty_print import OutputFormat, angle_to_str
 from graphix.states import BasicStates, State
 
@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
     from graphix import Circuit, Pattern
-    from graphix.command import Command
 
 
 def circuit_to_qasm3(circuit: Circuit) -> str:
@@ -70,7 +69,7 @@ def angle_to_qasm3(angle: ParameterizedAngle) -> str:
     return angle_to_str(angle, output=OutputFormat.ASCII, multiplication_sign=True)
 
 
-def instruction_to_qasm3(instruction: Instruction) -> str:
+def instruction_to_qasm3(instruction: InstructionType) -> str:
     """Get the OpenQASM3 representation of a single circuit instruction."""
     match instruction.kind:
         case InstructionKind.M:
@@ -160,12 +159,12 @@ def pattern_to_qasm3_lines(pattern: Pattern, input_state: dict[int, State] | Sta
         yield from command_to_qasm3_lines(cmd)
 
 
-def command_to_qasm3_lines(cmd: Command) -> Iterator[str]:
+def command_to_qasm3_lines(cmd: CommandType) -> Iterator[str]:
     """Convert a command in the pattern into OpenQASM 3.0 statement.
 
     Parameter
     ---------
-    cmd : Command
+    cmd : CommandType
         command
 
     Yields

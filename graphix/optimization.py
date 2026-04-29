@@ -802,7 +802,9 @@ def single_qubit_domains(pattern: Pattern) -> Pattern:
     new_pattern = Pattern(input_nodes=pattern.input_nodes)
     new_pattern.results = pattern.results
 
-    def decompose_domain(cmd: Callable[[int, set[int]], command.Command], node: int, domain: AbstractSet[int]) -> bool:
+    def decompose_domain(
+        cmd: Callable[[int, set[int]], command.CommandType], node: int, domain: AbstractSet[int]
+    ) -> bool:
         if len(domain) <= 1:
             return False
         for src in domain:

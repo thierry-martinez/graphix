@@ -6,7 +6,7 @@ import enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, ClassVar, Literal, SupportsFloat
+from typing import ClassVar, Literal, SupportsFloat
 
 # Self introduced in Python 3.11
 # override introduced in Python 3.12
@@ -290,62 +290,57 @@ class RZ(_KindChecker, BaseInstruction):
         return RZ(visitor.visit_qubit(self.target), visitor.visit_angle(self.angle))
 
 
-if TYPE_CHECKING:
-    InstructionWithoutRZZ = CCX | CNOT | SWAP | CZ | H | S | X | Y | Z | I | M | RX | RY | RZ
-    Instruction = InstructionWithoutRZZ | RZZ
-else:
+class _InstructionMeta(type):
+    _members: ClassVar[tuple[type, ...]] = ()
 
-    class Instruction:
-        """Grouping of all instructions for namespace exposure.
+    def __instancecheck__(cls, obj: object) -> bool:
+        return isinstance(obj, cls._members)
 
-        Notes
-        -----
-        This class is not meant to be instantiated, but rather serves as a namespace for all instructions except RZZ.
-        The type alias for "any command" is :data:`InstructionKind`.
-        """
 
-        CCX = CCX
-        RZZ = RZZ
-        CNOT = CNOT
-        CZ = CZ
-        SWAP = SWAP
-        H = H
-        S = S
-        X = X
-        Y = Y
-        Z = Z
-        I = I
-        M = M
-        RX = RX
-        RY = RY
-        RZ = RZ
+InstructionTypeWithoutRZZ = CCX | CNOT | SWAP | CZ | H | S | X | Y | Z | I | M | RX | RY | RZ
+InstructionType = InstructionTypeWithoutRZZ | RZZ
 
-        def __init__(self) -> None:
-            raise TypeError("Command is a namespace, not a class.")
 
-    class InstructionWithoutRZZ:
-        """Grouping of all instructions for namespace exposure.
+class InstructionWithoutRZZ(metaclass=_InstructionMeta):
+    """Grouping of all instructions except RZZ for namespace exposure.
 
-        Notes
-        -----
-        This class is not meant to be instantiated, but rather serves as a namespace for all instructions except RZZ.
-        The type alias for "any command" is :data:`InstructionKind`.
-        """
+    Notes
+    -----
+    This class is not meant to be instantiated, but rather serves as a namespace for all instructions except RZZ.
+    The type alias for "any command" is :data:`InstructionKind`.
+    """
 
-        CCX = CCX
-        CNOT = CNOT
-        CZ = CZ
-        SWAP = SWAP
-        H = H
-        S = S
-        X = X
-        Y = Y
-        Z = Z
-        I = I
-        M = M
-        RX = RX
-        RY = RY
-        RZ = RZ
+    CCX: type[CCX] = CCX
+    CNOT: type[CNOT] = CNOT
+    CZ: type[CZ] = CZ
+    SWAP: type[SWAP] = SWAP
+    H: type[H] = H
+    S: type[S] = S
+    X: type[X] = X
+    Y: type[Y] = Y
+    Z: type[Z] = Z
+    I: type[I] = I
+    M: type[M] = M
+    RX: type[RX] = RX
+    RY: type[RY] = RY
+    RZ: type[RZ] = RZ
+    _members: ClassVar[tuple[type, ...]] = (CCX, CNOT, CZ, SWAP, H, S, X, Y, Z, I, M, RX, RY, RZ)
 
-        def __init__(self) -> None:
-            raise TypeError("Command is a namespace, not a class.")
+    def __init__(self) -> None:
+        raise TypeError("InstructionWithoutRZZ is a namespace, not a class.")
+
+
+class Instruction(InstructionWithoutRZZ):
+    """Grouping of all instructions for namespace exposure.
+
+    Notes
+    -----
+    This class is not meant to be instantiated, but rather serves as a namespace for all instructions except RZZ.
+    The type alias for "any command" is :data:`InstructionKind`.
+    """
+
+    RZZ: type[RZZ] = RZZ
+    _members: ClassVar[tuple[type, ...]] = (*InstructionWithoutRZZ._members, RZZ)
+
+    def __init__(self) -> None:
+        raise TypeError("Instruction is a namespace, not a class.")
