@@ -304,8 +304,9 @@ def test_transpile_swaps(fx_bg: PCG64, jumps: int) -> None:
     for qubit in transpiled_swaps.qubits:
         assert qubit is not None
         qubits.append(qubit)
-    state2.psi = np.transpose(state2.psi, qubits)
-    assert state.isclose(state2)
+    psi_t = np.transpose(state2.flatten().reshape((2,) * nqubits), qubits)
+    state2_test = Statevec(psi_t.reshape(1 << nqubits))
+    assert state.isclose(state2_test)
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
