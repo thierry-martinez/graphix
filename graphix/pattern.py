@@ -64,6 +64,7 @@ if TYPE_CHECKING:
 
 _BuiltinBackendState = DensityMatrix | Statevector | MBQCTensorNet
 
+assert False
 
 class DrawPatternAnnotations(Enum):
     """Enumeration to indicate the possible annotations for `Pattern.draw`."""
