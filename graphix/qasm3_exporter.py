@@ -151,7 +151,11 @@ def instruction_to_qasm3(instruction: InstructionType) -> Iterable[str]:
                 ],
             )
         case InstructionKind.CONDINSTR:
-            raise NotImplementedError("QASM export not supported for circuits with conditonal instructions.")
+            yield from domain_to_qasm3_lines(
+                instruction.domain,
+                (line for instr in instruction.instructions for line in instruction_to_qasm3(instr)),
+                _circuit_bit_to_qasm3,
+            )
         case _:
             assert_never(instruction.kind)
 
@@ -296,3 +300,7 @@ def domain_to_qasm3_lines(
 
 def _pattern_node_to_qasm3(node: int) -> str:
     return f"c{node}"
+
+
+def _circuit_bit_to_qasm3(node: int) -> str:
+    return f"b[{node}]"

@@ -33,6 +33,7 @@ except ImportError:
 
 def check_round_trip(circuit: Circuit) -> None:
     qasm = circuit_to_qasm3(circuit)
+    print(qasm)
     check_circuit = circuit.transpile_j_to_rzh()
     parser = OpenQASMParser()
     parsed_circuit = parser.parse_str(qasm)
@@ -71,4 +72,23 @@ def test_j_to_qasm3_failure() -> None:
 
 def test_measurement() -> None:
     circuit = Circuit(1, instr=[Instruction.M(target=0, axis=Axis.Z)])
+    check_round_trip(circuit)
+
+
+def test_condinstr() -> None:
+    circuit = Circuit(
+        3,
+        instr=[
+            Instruction.M(2, Axis.Z),
+            Instruction.CONDINSTR((Instruction.X(0),), {2}),
+            Instruction.M(0, Axis.Z),
+            Instruction.CONDINSTR(
+                (
+                    Instruction.X(1),
+                    Instruction.Z(1),
+                ),
+                {0, 2},
+            ),
+        ],
+    )
     check_round_trip(circuit)
