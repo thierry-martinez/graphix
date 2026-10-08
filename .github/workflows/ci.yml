@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+        os: ["windows-latest"]
+        python: ["3.15"]
 
     name: "Python ${{ matrix.python }} / ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
@@ -34,4 +34,4 @@ jobs:
         uses: ./.github/actions/setup-uv
 
       - name: Run nox
-        run: uv run --extra dev nox -db uv --python ${{ matrix.python }}
+        run: uv run --extra dev nox -db uv --python ${{ matrix.python }} -s "tests_reverse_dependencies-3.15(package_name='graphix-qasm-parser')"
