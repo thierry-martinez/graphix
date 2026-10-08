@@ -67,7 +67,9 @@ dev = [
     "qiskit_qasm3_import",
     # See Qiskit/qiskit-aer#2468
     "qiskit-aer; python_version < '3.15'",
-    "matplotlib==3.11.2",
+    "matplotlib==3.10.9; python_version < '3.11'",
+    # matplotlib 3.10 fails with Python 3.15 on Windows
+    "matplotlib==3.11.2; python_version >= '3.11'",
 ]
 doc = [
     "furo",
