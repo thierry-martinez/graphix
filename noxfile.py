@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 nox.options.default_venv_backend = "uv|virtualenv"
 
-PYTHON_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+PYTHON_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
 
 
 def install_pytest(session: Session) -> None:
@@ -101,7 +101,12 @@ REVERSE_DEPENDENCIES = {
     ),
     "graphix-qasm-parser": ReverseDependency("https://github.com/TeamGraphix/graphix-qasm-parser"),
     "graphix-ibmq": ReverseDependency(
-        "https://github.com/thierry-martinez/graphix-ibmq", doctest_modules=False, branch="suppress_warnings"
+        "https://github.com/thierry-martinez/graphix-ibmq",
+        doctest_modules=False,
+        branch="suppress_warnings",
+        # Bumping to Python 3.15 requires qiskit-aer to support Python 3.15.
+        # See Qiskit/qiskit-aer#2468
+        version_constraint=VersionRange(upper=Version("3.15")),
     ),
     "graphix-stim-compiler": ReverseDependency(
         "https://github.com/thierry-martinez/graphix-stim-compiler", branch="suppress_warnings"
@@ -123,6 +128,9 @@ REVERSE_DEPENDENCIES = {
         doctest_modules=False,
         install_target=".[dev]",
         branch="suppress_warnings",
+        # Bumping to Python 3.15 requires qiskit-aer to support Python 3.15.
+        # See Qiskit/qiskit-aer#2468
+        version_constraint=VersionRange(upper=Version("3.15")),
     ),
     "graphix-mqtbench": ReverseDependency(
         "https://github.com/thierry-martinez/graphix-mqtbench", branch="add_openqasm_gates"
@@ -172,4 +180,8 @@ def tests_reverse_dependencies(session: Session, package_name: str) -> None:
         with session.cd(tmpdir), session.cd(dirname):
             if package.initialization is not None:
                 package.initialization(session)
+            session.run("python", "-c", "import sys; print(sys.executable); print(sys.version)")
+            session.run("python", "-c", "import importlib.metadata as m; print('matplotlib:', m.version('matplotlib')); print('numpy:', m.version('numpy'))")
+            session.run("python", "-c", "import matplotlib")
+            session.run("python", "-c", "import pytest_mpl; print('pytest-mpl OK'); import matplotlib; print('matplotlib OK')")
             run_pytest(session, *package.pytest_args, doctest_modules=package.doctest_modules)
