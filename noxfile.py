@@ -180,7 +180,8 @@ def tests_reverse_dependencies(session: Session, package_name: str) -> None:
         with session.cd(tmpdir), session.cd(dirname):
             if package.initialization is not None:
                 package.initialization(session)
-            session.run("python", "-m", "pip", "show", "matplotlib", "numpy")
+            session.run("python", "-c", "import sys; print(sys.executable); print(sys.version)")
+            session.run("python", "-c", "import importlib.metadata as m; print('matplotlib:', m.version('matplotlib')); print('numpy:', m.version('numpy'))")
             session.run("python", "-c", "import matplotlib")
             session.run("python", "-c", "import pytest_mpl; print('pytest-mpl OK'); import matplotlib; print('matplotlib OK')")
             run_pytest(session, *package.pytest_args, doctest_modules=package.doctest_modules)
