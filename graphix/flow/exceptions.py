@@ -224,6 +224,10 @@ class FlowGenericError(FlowError):
                 return "The image of the correction function must be a subset of non-input nodes (prepared qubits) of the open graph."
             case FlowGenericErrorReason.XYPlane:
                 return "Causal flow is only defined on open graphs with XY measurements."
+            case FlowGenericErrorReason.XZPlane:
+                return "Extended causal flow is only defined on open graphs without XZ measurements."
+            case FlowGenericErrorReason.YZPlane:
+                return "YZ measurements should be self-corrected in extended causal flow."
             case FlowGenericErrorReason.NoPauliFlow:
                 return "No Pauli flow is compatible with the XZ-corrections: the GF(2) system that reconstructs the correction function has no solution for at least one measured node."
             case _:

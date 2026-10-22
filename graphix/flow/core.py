@@ -1195,6 +1195,113 @@ class GFlow(PauliFlow[_PM_co], Generic[_PM_co]):
 
 
 @dataclass(frozen=True)
+class ExtendedCausalFlow(GFlow[_PM_co], Generic[_PM_co]):
+    """An unmutable subclass of ``GFlow`` providing a representation of an extended causal flow.
+
+    This class differs from its parent class in the following:
+        - The extraction of XZ-corrections from the extended causal flow does assumes that correction sets have one element only.
+        - The method :func:`ExtendedCausalFlow.is_well_formed` verifies the definition of extended causal flow (Definition 10 in Ref. [1]).
+
+    References
+    ----------
+    [1] Miriam Backens and Simon Perdrix, Completeness for flow-preserving rewrite rules, 2026 (arXiv:2608.13035).
+    """
+
+    _CF_PREFIX: str = "c"  # Correction function prefix for printing
+
+    @override
+    @classmethod
+    def from_correctionmatrix_or_none(cls, correction_matrix: CorrectionMatrix[_PM_co]) -> None:
+        raise NotImplementedError("Initialization of an extended causal flow from a correction matrix is not supported.")
+
+    def check_well_formed(self) -> None:
+        r"""Verify if the causal flow is well formed.
+
+        Raises
+        ------
+        FlowError
+            if the causal flow is not well formed.
+
+        Notes
+        -----
+        General properties of flows:
+            - The domain of the correction function is :math:`O^c`, the non-output nodes of the open graph.
+            - The image of the correction function is a subset of :math:`I^c`, the non-input nodes of the open graph.
+            - The nodes in the partial order are the nodes in the open graph.
+            - The first layer of the partial order layers is :math:`O`, the output nodes of the open graph. This is guaranteed because open graphs without outputs do not have flow, unless it is an empty open graph.
+
+        Specific properties of causal flows:
+            - Correction sets have one element only (C0),
+            - :math:`i \sim c(i)` (C1),
+            - :math:`i \prec c(i)` (C2),
+            - :math:`\forall k \in N_G(c(i)) \setminus \{i\}, i \prec k` (C3),
+        where :math:`i \in O^c`, :math:`c` is the correction function and :math:`prec` denotes the partial order.
+
+        Causal flows are defined on open graphs with XY measurements only.
+
+        See Definition 2 in Ref. [1].
+
+        References
+        ----------
+        [1] Browne et al., 2007 New J. Phys. 9 250 (arXiv:quant-ph/0702212).
+        """
+        _check_flow_general_properties(self)
+
+        o_set = set(self.og.output_nodes)
+        oc_set = set(self.og.measurements)
+
+        layer_idx = len(self.partial_order_layers) - 1
+        past_and_present_nodes: set[int] = set()
+        shift = 1 if o_set else 0
+        for layer in reversed(self.partial_order_layers[shift:]):
+            if not oc_set.issuperset(layer) or not layer or layer & past_and_present_nodes:
+                raise PartialOrderLayerError(PartialOrderLayerErrorReason.NthLayer, layer_index=layer_idx, layer=layer)
+
+            past_and_present_nodes.update(layer)
+
+            for node in layer:
+                correction_set = set(self.correction_function[node])
+
+                if len(correction_set) != 1:
+                    raise FlowPropositionError(FlowPropositionErrorReason.C0, node=node, correction_set=correction_set)
+
+                neighbors = self.og.neighbors(correction_set)
+
+                if node not in neighbors:
+                    raise FlowPropositionError(FlowPropositionErrorReason.C1, node=node, correction_set=correction_set)
+
+                meas = self.node_measurement_label(node)
+                match meas:
+                    case Plane.XZ:
+                        raise FlowGenericError(FlowGenericErrorReason.XZPlane)
+                    case Plane.XY:
+                        # If some nodes of the correction set are in the past or in the present of the current node, they cannot be in its future, so the flow is incorrrect.
+                        if correction_set & past_and_present_nodes:
+                            raise FlowPropositionOrderError(
+                                FlowPropositionOrderErrorReason.C2,
+                                node=node,
+                                correction_set=correction_set,
+                                past_and_present_nodes=past_and_present_nodes,
+                            )
+                    case Plane.YZ:
+                        if node not in correction_set:
+                            raise FlowGenericError(FlowGenericErrorReason.YZPlane)
+
+                if (neighbors - {node}) & past_and_present_nodes:
+                    raise FlowPropositionOrderError(
+                        FlowPropositionOrderErrorReason.C3,
+                        node=node,
+                        correction_set=correction_set,
+                        past_and_present_nodes=past_and_present_nodes,
+                    )
+
+            layer_idx -= 1
+
+        if {*o_set, *past_and_present_nodes} != set(self.og.graph.nodes):
+            raise PartialOrderError(PartialOrderErrorReason.IncorrectNodes)
+
+
+@dataclass(frozen=True)
 class CausalFlow(GFlow[_PM_co], Generic[_PM_co]):
     """An unmutable subclass of ``GFlow`` providing a representation of a causal flow.
 

@@ -13,7 +13,7 @@ import networkx as nx
 from typing_extensions import override
 
 from graphix.clifford import Clifford
-from graphix.flow._find_cflow import find_cflow
+from graphix.flow._find_cflow import find_cflow, find_ecflow
 from graphix.flow._find_gpflow import AlgebraicOpenGraph, PlanarAlgebraicOpenGraph, compute_correction_matrix
 from graphix.flow.core import GFlow, PauliFlow
 from graphix.fundamentals import AbstractMeasurement, AbstractPlanarMeasurement
@@ -404,6 +404,35 @@ class OpenGraph(Parameterizable, Simulable[_AM_co], Generic[_AM_co]):
             raise OpenGraphError("The open graph does not have a causal flow.")
         return cf
 
+    def to_extendedcausalflow(self: OpenGraph[_PM_co]) -> ExtendedCausalFlow[_PM_co]:
+        """Try to extract a causal flow on the open graph.
+
+        This method is a wrapper over :func:`OpenGraph.to_extendedcausalflow_or_none` with a single return type.
+
+        This method requires all measurements to be planar: to extract
+        the causal flow from a graph that contains Pauli measurements,
+        you can apply :func:`OpenGraph.to_bloch()` first.
+
+        Returns
+        -------
+        ExtendedCausalFlow[_PM_co]
+            An extended causal flow object if the open graph has causal flow.
+
+        Raises
+        ------
+        OpenGraphError
+            If the open graph does not have a causal flow.
+
+        See Also
+        --------
+        :func:`OpenGraph.to_extendedcausalflow_or_none`
+
+        """
+        cf = self.to_extendedcausalflow_or_none()
+        if cf is None:
+            raise OpenGraphError("The open graph does not have a causal flow.")
+        return cf
+
     def to_gflow(self: OpenGraph[_PM_co]) -> GFlow[_PM_co]:
         r"""Try to extract a maximally delayed generalised flow (gflow) on the open graph.
 
@@ -489,6 +518,34 @@ class OpenGraph(Parameterizable, Simulable[_AM_co], Generic[_AM_co]):
         [1] Mhalla and Perdrix, (2008), Finding Optimal Flows Efficiently, doi.org/10.1007/978-3-540-70575-8_70
         """
         return find_cflow(self)
+
+    def to_extendedcausalflow_or_none(self: OpenGraph[_PM_co]) -> ExtendedCausalFlow[_PM_co] | None:
+        """Return an extended causal flow on the open graph if it exists.
+
+        This method requires all measurements to be planar: to find
+        the extended causal flow from a graph that contains Pauli
+        measurements, you can apply :func:`OpenGraph.to_bloch()`
+        first.
+
+        Returns
+        -------
+        ExtendedCausalFlow[_PM_co] | None
+            An extended causal flow object if the open graph has extended causal flow  or ``None`` otherwise.
+
+        See Also
+        --------
+        :func:`OpenGraph.to_extendedcausalflow`
+
+        Notes
+        -----
+        - The open graph instance must be of parametric type `Measurement` or `Plane` since the causal flow is only defined on open graphs with :math:`XY` or :math:`YZ` measurements.
+        - This function implements the algorithm presented in Ref. [1] with polynomial complexity on the number of nodes, :math:`O(N^2)`.
+
+        References
+        ----------
+        [1] Mhalla and Perdrix, (2008), Finding Optimal Flows Efficiently, doi.org/10.1007/978-3-540-70575-8_70
+        """
+        return find_ecflow(self)
 
     def to_gflow_or_none(self: OpenGraph[_PM_co]) -> GFlow[_PM_co] | None:
         r"""Return a maximally delayed Pauli on the open graph if it exists.

@@ -12,41 +12,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from graphix.flow.core import CausalFlow
+from graphix.flow.core import CausalFlow, ExtendedCausalFlow
 from graphix.fundamentals import Plane
 
 if TYPE_CHECKING:
     from graphix.opengraph import OpenGraph, _PM_co
 
 
-def find_cflow(og: OpenGraph[_PM_co]) -> CausalFlow[_PM_co] | None:
-    """Return the causal flow of the input open graph if it exists.
-
-    Parameters
-    ----------
-    og : OpenGraph[_PM_co]
-        Open graph whose causal flow is calculated.
-
-    Returns
-    -------
-    CausalFlow[_PM_co] | None
-        A causal flow object if the open graph has causal flow, `None` otherwise.
-
-    Notes
-    -----
-    - See Definition 2, Theorem 1 and Algorithm 1 in Ref. [1].
-    - The open graph instance must be of parametric type `Measurement` or `Plane` since the causal flow is only defined on open graphs with :math:`XY` measurements.
-
-    References
-    ----------
-    [1] Mhalla and Perdrix, (2008), Finding Optimal Flows Efficiently, doi.org/10.1007/978-3-540-70575-8_70
-    """
-    for measurement in og.measurements.values():
-        if measurement.to_plane() in {Plane.XZ, Plane.YZ}:
-            return None
-
+def _find_cf_layers(og: OpenGraph[_PM_co], corrected_nodes: set[Node]) -> tuple[dict[int, frozenset[int]], list[frozenset[int]]]:
     graph_nodes = set(og.graph.nodes)
-    corrected_nodes = set(og.output_nodes)
     corrector_candidates = corrected_nodes - set(og.input_nodes)
     non_input_nodes = og.graph.nodes - set(og.input_nodes)
 
@@ -78,5 +52,65 @@ def find_cflow(og: OpenGraph[_PM_co]) -> CausalFlow[_PM_co] | None:
 
         corrected_nodes |= corrected_nodes_new
         corrector_candidates = (corrector_candidates - corrector_nodes_new) | (corrected_nodes_new & non_input_nodes)
+    return cf, layers
 
+
+def find_cflow(og: OpenGraph[_PM_co]) -> CausalFlow[_PM_co] | None:
+    """Return the causal flow of the input open graph if it exists.
+
+    Parameters
+    ----------
+    og : OpenGraph[_PM_co]
+        Open graph whose causal flow is calculated.
+
+    Returns
+    -------
+    CausalFlow[_PM_co] | None
+        A causal flow object if the open graph has causal flow, `None` otherwise.
+
+    Notes
+    -----
+    - See Definition 2, Theorem 1 and Algorithm 1 in Ref. [1].
+    - The open graph instance must be of parametric type `Measurement` or `Plane` since the causal flow is only defined on open graphs with :math:`XY` measurements.
+
+    References
+    ----------
+    [1] Mhalla and Perdrix, (2008), Finding Optimal Flows Efficiently, doi.org/10.1007/978-3-540-70575-8_70
+    """
+    for measurement in og.measurements.values():
+        if measurement.to_plane() in {Plane.XZ, Plane.YZ}:
+            return None
+
+    cf, layers = _find_cf_layers(og, set(og.output_nodes))
     return CausalFlow(og, cf, tuple(layers))
+
+
+def find_ecflow(og: OpenGraph[_PM_co]) -> ExtendedCausalFlow[_PM_co] | None:
+    """Return the extended causal flow of the input open graph if it exists.
+
+    Parameters
+    ----------
+    og : ExtendedOpenGraph[_PM_co]
+        Open graph whose extended causal flow is calculated.
+
+    Returns
+    -------
+    ExtendedCausalFlow[_PM_co] | None
+        An extended causal flow object if the open graph has extended causal flow, `None` otherwise.
+
+    Notes
+    -----
+    The algorithm is derived from the algorithm finding causal flow,
+    considering that YZ-nodes are self-corrected from the start.
+
+    """
+    yz_nodes = set()
+    for node, measurement in og.measurements.items():
+        match measurement.to_plane():
+            case Plane.XZ:
+                return None
+            case Plane.YZ:
+                yz_nodes.add(node)
+
+    cf, layers = _find_cf_layers(og, set(og.output_nodes) | yz_nodes)
+    return ExtendedCausalFlow(og, cf, tuple(layers))

@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import networkx as nx
 import pytest
+from numpy.random import PCG64, Generator
 
+from graphix import Circuit
+from graphix.random_objects import rand_circuit
 from graphix.command import E, M, N, X, Z
 from graphix.flow.core import (
     CausalFlow,
@@ -37,6 +40,7 @@ from graphix.opengraph import OpenGraph
 from graphix.parameter import Placeholder
 from graphix.pattern import Pattern
 from graphix.states import PlanarState
+from tests.test_instruction import INSTRUCTION_TEST_CASES
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -1204,3 +1208,15 @@ class TestIncorrectXZC:
         for field in fields(exc_info.value):
             attr = field.name
             assert getattr(exc_info.value, attr) == getattr(test_case.exception, attr)
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_ecf(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    nqubits = 3
+    depth = 2
+    circuit = rand_circuit(nqubits, depth, rng, use_j=True, use_ccx=True, use_rzz=True)
+    pattern = circuit.transpile().pattern
+    standardizedpattern = pattern.to_standardizedpattern()
+    removed = standardizedpattern.infer_pauli_measurements().remove_pauli_measurements().to_bloch()
+    print(removed.to_opengraph().to_extendedcausalflow())
